@@ -12,7 +12,10 @@ from solo.admin import SingletonModelAdmin
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
 from discord_obfuscate.config import sync_on_save_enabled
-from discord_obfuscate.forms import DiscordRoleObfuscationForm
+from discord_obfuscate.forms import (
+    DiscordObfuscateConfigForm,
+    DiscordRoleObfuscationForm,
+)
 from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
 from discord_obfuscate.tasks import sync_all_roles, sync_group_role
@@ -165,8 +168,11 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
 
 @admin.register(DiscordObfuscateConfig)
 class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
+    form = DiscordObfuscateConfigForm
     fields = (
         "sync_on_save",
+        "role_color_enabled",
+        "role_color",
         "periodic_sync_enabled",
         "periodic_sync_minute",
         "periodic_sync_hour",

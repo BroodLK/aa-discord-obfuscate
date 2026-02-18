@@ -11,10 +11,8 @@ from django.contrib.auth.models import Group
 # Alliance Auth
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
-from discord_obfuscate.obfuscation import (
-    fetch_roleset,
-    role_name_for_group,
-)
+from discord_obfuscate.config import role_color_value
+from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
 from discord_obfuscate.models import DiscordRoleObfuscation
 
 logger = logging.getLogger(__name__)
@@ -29,7 +27,7 @@ def _find_role_by_id(roleset, role_id):
     return None
 
 
-def _rename_role(role_id: int, new_name: str) -> bool:
+def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
     """Rename a Discord role via bot client."""
     try:
         from allianceauth.services.modules.discord.core import (
@@ -38,7 +36,10 @@ def _rename_role(role_id: int, new_name: str) -> bool:
         )
 
         route = f"guilds/{DISCORD_GUILD_ID}/roles/{role_id}"
-        default_bot_client._api_request(method="patch", route=route, data={"name": new_name})
+        data = {"name": new_name}
+        if color is not None:
+            data["color"] = color
+        default_bot_client._api_request(method="patch", route=route, data=data)
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
         logger.info("Renamed Discord role %s to %s", role_id, new_name)
         return True
@@ -62,6 +63,7 @@ def sync_group_role(group_id: int) -> bool:
     roleset = fetch_roleset(use_cache=False)
     desired_name = role_name_for_group(group, config)
     logger.debug("Sync role for group %s -> %s", group.name, desired_name)
+    color_value = role_color_value()
 
     desired_role = roleset.role_by_name(desired_name)
     if desired_role:
@@ -69,7 +71,9 @@ def sync_group_role(group_id: int) -> bool:
         config.last_obfuscated_name = desired_name
         config.save(update_fields=["role_id", "last_obfuscated_name", "updated_at"])
         logger.info("Role already matches desired name for group %s", group.name)
-        return True
+        if color_value is None:
+            return True
+        return _rename_role(desired_role.id, desired_name, color=color_value)
 
     role_to_rename = None
     if config.role_id:
@@ -90,9 +94,11 @@ def sync_group_role(group_id: int) -> bool:
         config.last_obfuscated_name = desired_name
         config.save(update_fields=["role_id", "last_obfuscated_name", "updated_at"])
         logger.info("Role name already set for group %s", group.name)
-        return True
+        if color_value is None:
+            return True
+        return _rename_role(role_to_rename.id, desired_name, color=color_value)
 
-    if _rename_role(role_to_rename.id, desired_name):
+    if _rename_role(role_to_rename.id, desired_name, color=color_value):
         config.role_id = role_to_rename.id
         config.last_obfuscated_name = desired_name
         config.save(update_fields=["role_id", "last_obfuscated_name", "updated_at"])

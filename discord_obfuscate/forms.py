@@ -8,7 +8,7 @@ from django import forms
 
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
-from discord_obfuscate.models import DiscordRoleObfuscation
+from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import role_name_for_group
 
 DIVIDER_CHOICES = [(char, char) for char in ALLOWED_DIVIDERS]
@@ -112,3 +112,30 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class DiscordObfuscateConfigForm(forms.ModelForm):
+    """Form for global Discord obfuscation settings."""
+
+    role_color = forms.CharField(
+        required=False,
+        label="Role color",
+        widget=forms.TextInput(attrs={"type": "color"}),
+    )
+
+    class Meta:
+        model = DiscordObfuscateConfig
+        fields = "__all__"
+
+    def clean_role_color(self):
+        value = (self.cleaned_data.get("role_color") or "").strip()
+        if not value:
+            return "#000000"
+        if not value.startswith("#"):
+            raise forms.ValidationError("Color must start with #.")
+        if len(value) != 7:
+            raise forms.ValidationError("Color must be in #RRGGBB format.")
+        for char in value[1:]:
+            if char.lower() not in "0123456789abcdef":
+                raise forms.ValidationError("Color must be valid hex.")
+        return value.lower()

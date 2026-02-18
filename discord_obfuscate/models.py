@@ -100,6 +100,15 @@ class DiscordObfuscateConfig(SingletonModel):
         default=True,
         help_text="Queue a role rename task when a config is saved in admin.",
     )
+    role_color_enabled = models.BooleanField(
+        default=False,
+        help_text="If enabled, set Discord role color during sync.",
+    )
+    role_color = models.CharField(
+        max_length=7,
+        default="#000000",
+        help_text="Role color in hex (#RRGGBB).",
+    )
     periodic_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic full sync of roles via Celery beat.",

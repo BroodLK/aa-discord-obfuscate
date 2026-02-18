@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 - Obfuscates Discord role names for Alliance Auth groups using HMAC hashes.
 - Per-group controls in Django admin: opt out, custom name override, method, format, dividers.
+- Optional global role color applied during sync.
 - Preview and bulk sync actions in Django admin.
 - Optional automatic sync on save via Celery tasks.
 
