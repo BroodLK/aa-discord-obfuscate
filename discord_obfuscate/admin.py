@@ -6,10 +6,14 @@ from django.contrib.auth.models import Group
 from django.http import JsonResponse
 from django.urls import path
 
+# Third Party
+from solo.admin import SingletonModelAdmin
+
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
+from discord_obfuscate.config import sync_on_save_enabled
 from discord_obfuscate.forms import DiscordRoleObfuscationForm
-from discord_obfuscate.models import DiscordRoleObfuscation
+from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
 from discord_obfuscate.tasks import sync_all_roles, sync_group_role
 
@@ -104,6 +108,13 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         sync_all_roles.delay()
         messages.success(request, "Queued sync for all groups.")
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not sync_on_save_enabled():
+            return
+        if form and form.has_changed():
+            sync_group_role.delay(obj.group_id)
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -150,3 +161,17 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         preview = role_name_for_group(temp_group, temp_config)
 
         return JsonResponse({"preview": preview})
+
+
+@admin.register(DiscordObfuscateConfig)
+class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
+    fields = (
+        "sync_on_save",
+        "periodic_sync_enabled",
+        "periodic_sync_minute",
+        "periodic_sync_hour",
+        "periodic_sync_day_of_week",
+        "periodic_sync_day_of_month",
+        "periodic_sync_month_of_year",
+        "periodic_sync_timezone",
+    )

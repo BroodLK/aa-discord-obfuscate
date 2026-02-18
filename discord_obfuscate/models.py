@@ -4,6 +4,9 @@
 from django.db import models
 from django.contrib.auth.models import Group
 
+# Third Party
+from solo.models import SingletonModel
+
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
 
@@ -88,3 +91,53 @@ class DiscordRoleObfuscation(models.Model):
             if divider in ALLOWED_DIVIDERS and divider not in unique:
                 unique.append(divider)
         self.divider_characters = ",".join(unique)
+
+
+class DiscordObfuscateConfig(SingletonModel):
+    """Global settings for Discord Obfuscate."""
+
+    sync_on_save = models.BooleanField(
+        default=True,
+        help_text="Queue a role rename task when a config is saved in admin.",
+    )
+    periodic_sync_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable periodic full sync of roles via Celery beat.",
+    )
+    periodic_sync_minute = models.CharField(
+        max_length=32,
+        default="0",
+        help_text="Cron minute field for periodic sync.",
+    )
+    periodic_sync_hour = models.CharField(
+        max_length=32,
+        default="*/1",
+        help_text="Cron hour field for periodic sync.",
+    )
+    periodic_sync_day_of_week = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_week field for periodic sync.",
+    )
+    periodic_sync_day_of_month = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_month field for periodic sync.",
+    )
+    periodic_sync_month_of_year = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron month_of_year field for periodic sync.",
+    )
+    periodic_sync_timezone = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Timezone for periodic sync (blank uses project timezone).",
+    )
+
+    class Meta:
+        verbose_name = "Discord Obfuscate config"
+
+    def __str__(self):
+        return "Discord Obfuscate config"

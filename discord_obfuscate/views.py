@@ -10,10 +10,8 @@ from django.forms import modelformset_factory
 from django.contrib.auth.models import Group
 
 # Discord Obfuscate App
-from discord_obfuscate.app_settings import (
-    DISCORD_OBFUSCATE_DEFAULT_METHOD,
-    DISCORD_OBFUSCATE_SYNC_ON_SAVE,
-)
+from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
+from discord_obfuscate.config import sync_on_save_enabled
 from discord_obfuscate.forms import DiscordRoleObfuscationForm
 from discord_obfuscate.models import DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
@@ -80,7 +78,7 @@ def index(request: WSGIRequest) -> HttpResponse:
                 if form.has_changed():
                     instance = form.save()
                     changed_group_ids.append(instance.group_id)
-            if DISCORD_OBFUSCATE_SYNC_ON_SAVE:
+            if sync_on_save_enabled():
                 for group_id in changed_group_ids:
                     sync_group_role.delay(group_id)
             messages.success(request, "Settings saved.")

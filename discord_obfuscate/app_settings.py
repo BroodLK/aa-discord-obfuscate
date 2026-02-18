@@ -49,3 +49,19 @@ DISCORD_OBFUSCATE_SYNC_ON_SAVE = getattr(
     "DISCORD_OBFUSCATE_SYNC_ON_SAVE",
     True,
 )
+DISCORD_OBFUSCATE_PERIODIC_SYNC_ENABLED = getattr(
+    settings,
+    "DISCORD_OBFUSCATE_PERIODIC_SYNC_ENABLED",
+    False,
+)
+DISCORD_OBFUSCATE_PERIODIC_SYNC_CRONTAB = getattr(
+    settings,
+    "DISCORD_OBFUSCATE_PERIODIC_SYNC_CRONTAB",
+    {
+        "minute": "0",
+        "hour": "*/1",
+        "day_of_week": "*",
+        "day_of_month": "*",
+        "month_of_year": "*",
+    },
+)

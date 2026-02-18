@@ -18,6 +18,7 @@ ______________________________________________________________________
   - [Requirements](#requirements)
   - [Installation](#installation)
   - [Usage](#usage)
+    - [Optional Periodic Sync](#periodic-sync)
   - [How It Works](#how-it-works)
   - [Troubleshooting](#troubleshooting)
   - [Development](#development)
@@ -66,6 +67,16 @@ python manage.py migrate
 
 - Admin UI: manage everything in Django admin.
 - Permissions: grant users `discord_obfuscate.basic_access` to access the admin section.
+- Optional: enable sync-on-save and/or periodic sync in the Discord Obfuscate config.
+
+### Optional Periodic Sync<a name="periodic-sync"></a>
+
+If you want a periodic safety sync, enable it in the Discord Obfuscate config
+in Django admin and then run:
+
+```bash
+python manage.py discord_obfuscate_setup_periodic_tasks
+```
 
 ### Per-Group Options (Admin)
 
