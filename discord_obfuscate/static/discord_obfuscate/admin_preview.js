@@ -2,7 +2,7 @@
   function getPreviewUrl() {
     var path = window.location.pathname;
     if (path.endsWith("/change/")) {
-      return path.replace(/\/change\/$/, "/preview/");
+      return path.replace(/\/[^/]+\/change\/$/, "/preview/");
     }
     if (path.endsWith("/add/")) {
       return path.replace(/\/add\/$/, "/preview/");
