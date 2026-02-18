@@ -1,0 +1,1 @@
+"""Hook into Alliance Auth."""
