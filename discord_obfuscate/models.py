@@ -28,7 +28,7 @@ class DiscordRoleObfuscation(models.Model):
         related_name="discord_obfuscation",
     )
     opt_out = models.BooleanField(
-        default=False,
+        default=True,
         help_text="When enabled, the original group name is used.",
     )
     obfuscation_type = models.CharField(
