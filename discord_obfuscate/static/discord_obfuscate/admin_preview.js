@@ -82,8 +82,20 @@
       });
   }
 
+  function findForm() {
+    var groupField = document.getElementById("id_group");
+    if (groupField && groupField.form) {
+      return groupField.form;
+    }
+    var form = document.getElementById("discordroleobfuscation_form");
+    if (form) {
+      return form;
+    }
+    return document.querySelector("#content-main form");
+  }
+
   function bindPreview() {
-    var form = document.querySelector("form");
+    var form = findForm();
     if (!form) {
       return;
     }
