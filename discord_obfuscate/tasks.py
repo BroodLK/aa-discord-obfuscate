@@ -11,7 +11,6 @@ from django.contrib.auth.models import Group
 # Alliance Auth
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
-from discord_obfuscate.config import role_color_value
 from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
 from discord_obfuscate.models import DiscordRoleObfuscation
 
@@ -63,7 +62,16 @@ def sync_group_role(group_id: int) -> bool:
     roleset = fetch_roleset(use_cache=False)
     desired_name = role_name_for_group(group, config)
     logger.debug("Sync role for group %s -> %s", group.name, desired_name)
-    color_value = role_color_value()
+    color_value = None
+    if config and config.role_color:
+        value = config.role_color.strip()
+        if value.startswith("#"):
+            value = value[1:]
+        if len(value) == 6:
+            try:
+                color_value = int(value, 16)
+            except ValueError:
+                color_value = None
 
     desired_role = roleset.role_by_name(desired_name)
     if desired_role:

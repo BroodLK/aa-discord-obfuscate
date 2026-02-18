@@ -61,6 +61,12 @@ class DiscordRoleObfuscation(models.Model):
         default="",
         help_text="If set, overrides the obfuscation method.",
     )
+    role_color = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Optional role color in hex (#RRGGBB).",
+    )
     role_id = models.BigIntegerField(
         null=True,
         blank=True,
@@ -99,15 +105,6 @@ class DiscordObfuscateConfig(SingletonModel):
     sync_on_save = models.BooleanField(
         default=True,
         help_text="Queue a role rename task when a config is saved in admin.",
-    )
-    role_color_enabled = models.BooleanField(
-        default=False,
-        help_text="If enabled, set Discord role color during sync.",
-    )
-    role_color = models.CharField(
-        max_length=7,
-        default="#000000",
-        help_text="Role color in hex (#RRGGBB).",
     )
     periodic_sync_enabled = models.BooleanField(
         default=False,

@@ -41,6 +41,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "group",
         "opt_out",
         "custom_name",
+        "role_color",
         "obfuscation_type",
         "obfuscation_format",
         "divider_characters",
@@ -171,8 +172,6 @@ class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
     form = DiscordObfuscateConfigForm
     fields = (
         "sync_on_save",
-        "role_color_enabled",
-        "role_color",
         "periodic_sync_enabled",
         "periodic_sync_minute",
         "periodic_sync_hour",

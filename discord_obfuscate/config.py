@@ -55,16 +55,3 @@ def periodic_sync_settings() -> tuple[bool, dict]:
     }
     return bool(DISCORD_OBFUSCATE_PERIODIC_SYNC_ENABLED), schedule
 
-
-def role_color_value() -> int | None:
-    config = _get_config()
-    if config and config.role_color_enabled:
-        value = (config.role_color or "").strip()
-        if value.startswith("#"):
-            value = value[1:]
-        if len(value) == 6:
-            try:
-                return int(value, 16)
-            except ValueError:
-                return None
-    return None

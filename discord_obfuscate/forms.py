@@ -30,6 +30,11 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         label="Preview",
         widget=forms.TextInput(attrs={"readonly": "readonly"}),
     )
+    role_color = forms.CharField(
+        required=False,
+        label="Role color",
+        widget=forms.TextInput(attrs={"type": "color"}),
+    )
 
     class Meta:
         model = DiscordRoleObfuscation
@@ -41,6 +46,7 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             "divider_characters",
             "min_chars_before_divider",
             "custom_name",
+            "role_color",
             "preview",
         ]
         widgets = {
@@ -92,6 +98,19 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             )
         return value
 
+    def clean_role_color(self):
+        value = (self.cleaned_data.get("role_color") or "").strip()
+        if not value:
+            return ""
+        if not value.startswith("#"):
+            raise forms.ValidationError("Color must start with #.")
+        if len(value) != 7:
+            raise forms.ValidationError("Color must be in #RRGGBB format.")
+        for char in value[1:]:
+            if char.lower() not in "0123456789abcdef":
+                raise forms.ValidationError("Color must be valid hex.")
+        return value.lower()
+
     def clean(self):
         cleaned = super().clean()
         opt_out = cleaned.get("opt_out")
@@ -117,25 +136,6 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 class DiscordObfuscateConfigForm(forms.ModelForm):
     """Form for global Discord obfuscation settings."""
 
-    role_color = forms.CharField(
-        required=False,
-        label="Role color",
-        widget=forms.TextInput(attrs={"type": "color"}),
-    )
-
     class Meta:
         model = DiscordObfuscateConfig
         fields = "__all__"
-
-    def clean_role_color(self):
-        value = (self.cleaned_data.get("role_color") or "").strip()
-        if not value:
-            return "#000000"
-        if not value.startswith("#"):
-            raise forms.ValidationError("Color must start with #.")
-        if len(value) != 7:
-            raise forms.ValidationError("Color must be in #RRGGBB format.")
-        for char in value[1:]:
-            if char.lower() not in "0123456789abcdef":
-                raise forms.ValidationError("Color must be valid hex.")
-        return value.lower()
