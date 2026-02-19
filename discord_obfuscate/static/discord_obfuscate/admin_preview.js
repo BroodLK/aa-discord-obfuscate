@@ -21,7 +21,6 @@
   function collectFormData() {
     var formData = new FormData();
     var group = document.getElementById("id_group");
-    var stateName = document.getElementById("id_state_name");
     var optOut = document.getElementById("id_opt_out");
     var customName = document.getElementById("id_custom_name");
     var useRandomKey = document.getElementById("id_use_random_key");
@@ -36,9 +35,6 @@
 
     if (group) {
       formData.append("group", group.value || "");
-    }
-    if (stateName) {
-      formData.append("state_name", stateName.value || "");
     }
     if (optOut && optOut.checked) {
       formData.append("opt_out", "1");
@@ -78,25 +74,6 @@
     return formData;
   }
 
-  function toggleSubjectFields(groupField, stateField) {
-    if (!groupField || !stateField) {
-      return;
-    }
-    var groupValue = groupField.value || "";
-    var stateValue = stateField.value || "";
-    if (groupValue) {
-      stateField.disabled = true;
-      groupField.disabled = false;
-      return;
-    }
-    if (stateValue) {
-      groupField.disabled = true;
-      stateField.disabled = false;
-      return;
-    }
-    groupField.disabled = false;
-    stateField.disabled = false;
-  }
 
   function generateRandomKey(length) {
     var chars =
@@ -200,20 +177,6 @@
     }
     form.addEventListener("input", updatePreview);
     form.addEventListener("change", updatePreview);
-    var groupField = document.getElementById("id_group");
-    var stateField = document.getElementById("id_state_name");
-    if (groupField) {
-      groupField.addEventListener("change", function () {
-        toggleSubjectFields(groupField, stateField);
-        updatePreview();
-      });
-    }
-    if (stateField) {
-      stateField.addEventListener("change", function () {
-        toggleSubjectFields(groupField, stateField);
-        updatePreview();
-      });
-    }
     var useRandomKey = document.getElementById("id_use_random_key");
     if (useRandomKey) {
       useRandomKey.addEventListener("change", function () {
@@ -228,7 +191,6 @@
     var rotateName = document.getElementById("id_random_key_rotate_name");
     var rotatePosition = document.getElementById("id_random_key_rotate_position");
     toggleRandomKeyFields(useRandomKey, randomKey, rotateName, rotatePosition);
-    toggleSubjectFields(groupField, stateField);
     updatePreview();
   }
 

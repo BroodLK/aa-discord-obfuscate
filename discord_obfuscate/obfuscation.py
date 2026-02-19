@@ -8,6 +8,7 @@ import itertools
 import logging
 import secrets
 import string
+import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -21,7 +22,6 @@ from allianceauth.services.modules.discord.discord_client.helpers import RolesSe
 from discord_obfuscate.app_settings import (
     DISCORD_OBFUSCATE_DEFAULT_METHOD,
     DISCORD_OBFUSCATE_ENABLED,
-    DISCORD_OBFUSCATE_INCLUDE_STATES,
     DISCORD_OBFUSCATE_FORMAT,
     DISCORD_OBFUSCATE_PREFIX,
     DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE,
@@ -137,13 +137,13 @@ def obfuscate_name(
     return value[:ROLE_NAME_MAX_LEN]
 
 
-def role_name_for_name(
-    name: str,
+def role_name_for_group(
+    group: Group,
     config: Optional[DiscordRoleObfuscation],
 ) -> str:
-    """Determine the desired role name for a subject name based on config."""
+    """Determine the desired role name for a group based on config."""
     if config and config.opt_out:
-        return name
+        return group.name
     if config and config.custom_name:
         dividers = config.get_dividers()
         return _sanitize_output(str(config.custom_name), dividers)[:ROLE_NAME_MAX_LEN]
@@ -151,7 +151,7 @@ def role_name_for_name(
     format_str = config.obfuscation_format if config else DISCORD_OBFUSCATE_FORMAT
     dividers = config.get_dividers() if config else []
     min_chars = config.min_chars_before_divider if config else 0
-    input_name = name
+    input_name = group.name
     if config and config.use_random_key and config.random_key:
         input_name = config.random_key
     return obfuscate_name(
@@ -165,29 +165,56 @@ def role_name_for_name(
     )
 
 
-def role_name_for_group(
-    group: Group,
-    config: Optional[DiscordRoleObfuscation],
-) -> str:
-    """Determine the desired role name for a group based on config."""
-    return role_name_for_name(group.name, config)
+def _rate_limit_delay(exc) -> float:
+    resets_in = getattr(exc, "resets_in", None)
+    if resets_in is None and exc.args:
+        try:
+            resets_in = float(exc.args[0])
+        except (TypeError, ValueError):
+            resets_in = None
+    if resets_in is None:
+        return 5.0
+    try:
+        delay = float(resets_in)
+    except (TypeError, ValueError):
+        return 5.0
+    if delay > 60:
+        delay = delay / 1000.0
+    return max(delay + 0.25, 0.5)
 
 
-def fetch_roleset(use_cache: bool = True) -> RolesSet:
+def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
     """Fetch roles for the configured guild as RolesSet."""
     try:
         from allianceauth.services.modules.discord.core import (
             default_bot_client,
             DISCORD_GUILD_ID,
         )
-
-        roles = default_bot_client.guild_roles(
-            guild_id=DISCORD_GUILD_ID, use_cache=use_cache
+        from allianceauth.services.modules.discord.discord_client.exceptions import (
+            DiscordRateLimitExhausted,
         )
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                roles = default_bot_client.guild_roles(
+                    guild_id=DISCORD_GUILD_ID, use_cache=use_cache
+                )
+                return RolesSet(roles)
+            except DiscordRateLimitExhausted as exc:
+                if attempt >= max_attempts:
+                    raise
+                delay = _rate_limit_delay(exc)
+                logger.warning(
+                    "Rate limit hit fetching roles; retrying in %.2fs (attempt %s/%s)",
+                    delay,
+                    attempt,
+                    max_attempts,
+                )
+                time.sleep(delay)
     except Exception:
         logger.exception("Failed to fetch roles from Discord")
         return RolesSet([])
-    return RolesSet(roles)
+    return RolesSet([])
 
 
 def resolve_group_role_name(
@@ -250,8 +277,6 @@ def obfuscated_user_group_names(
     """Return obfuscated role names for a user's groups."""
     if not DISCORD_OBFUSCATE_ENABLED:
         names = [group.name for group in user.groups.all()]
-        if state_name:
-            names.append(state_name)
         return names
 
     roleset = fetch_roleset(use_cache=True)
@@ -275,24 +300,6 @@ def obfuscated_user_group_names(
                 "Skipping group %s because no matching role exists in Discord",
                 group.name,
             )
-
-    if state_name and DISCORD_OBFUSCATE_INCLUDE_STATES:
-        state_config = (
-            DiscordRoleObfuscation.objects.filter(state_name=state_name).first()
-        )
-        desired_state_name = role_name_for_name(state_name, state_config)
-        if not DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE:
-            logger.debug("Including state %s without role check", state_name)
-            role_names.append(desired_state_name)
-        else:
-            if roleset.role_by_name(desired_state_name):
-                logger.debug("Including state %s", state_name)
-                role_names.append(desired_state_name)
-            else:
-                logger.debug(
-                    "Skipping state %s because no matching role exists in Discord",
-                    state_name,
-                )
 
     return role_names
 

@@ -24,6 +24,7 @@ ______________________________________________________________________
     - [Admin Labels](#admin-labels)
   - [How It Works](#how-it-works)
   - [Troubleshooting](#troubleshooting)
+  - [Uninstall / Reset](#uninstall--reset)
   - [Development](#development)
 
 <!-- mdformat-toc end -->
@@ -32,7 +33,7 @@ ______________________________________________________________________
 
 ## Features<a name="features"></a>
 
-- Obfuscates Discord role names for Alliance Auth groups and states using HMAC hashes.
+- Obfuscates Discord role names for Alliance Auth groups using HMAC hashes.
 - Per-group controls in Django admin: opt out, custom name override, method, format, dividers, and role color.
 - Optional per-group role color applied during sync.
 - Optional per-group random key mode with periodic rotation and role shuffling.
@@ -125,8 +126,6 @@ These options are configured per group in Django admin:
 - Customize the output format and dividers.
 - Sync role names immediately for selected groups or all groups.
 
-States are managed with the same admin model by leaving the group blank and
-setting the state name.
 
 ## How It Works<a name="how-it-works"></a>
 
@@ -140,6 +139,47 @@ setting the state name.
 - If roles are not changing, make sure the Discord service is configured and a
   Celery worker is running.
 - If roles are missing, create them in Discord and then run a sync.
+
+## Uninstall / Reset<a name="uninstall--reset"></a>
+
+If you want to fully remove this app and all of its data, do the following:
+
+0) Reset role names (recommended)
+- Set the obfuscation entry to opt-out for each group so the original group name
+  is used, then run a sync to rename roles back to their defaults. (or save if you use update on save)
+
+1) Stop services
+- Stop the Celery worker/beat so no tasks run during cleanup.
+
+2) Disable scheduled tasks (optional but recommended)
+- In Django admin (`django_celery_beat`), delete periodic tasks named:
+  - `discord_obfuscate_sync_all_roles`
+  - `discord_obfuscate_sync_role_colors`
+  - `discord_obfuscate_rotate_random_keys`
+
+3) Remove database tables
+- Run:
+
+```bash
+python manage.py migrate discord_obfuscate zero
+```
+
+This drops all `discord_obfuscate` tables and data.
+
+4) Remove the app from settings
+- Remove `discord_obfuscate` from `INSTALLED_APPS`.
+
+5) Delete code
+- Uninstall the package or remove the app directory, then restart Alliance Auth.
+
+If you want to reset without uninstalling:
+- Run step 3 only, then re‑run:
+
+```bash
+python manage.py migrate
+```
+
+This recreates empty tables with a clean state.
 
 ## Development<a name="development"></a>
 

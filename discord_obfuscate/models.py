@@ -29,14 +29,6 @@ class DiscordRoleObfuscation(models.Model):
         Group,
         on_delete=models.CASCADE,
         related_name="discord_obfuscation",
-        null=True,
-        blank=True,
-    )
-    state_name = models.CharField(
-        max_length=100,
-        blank=True,
-        default="",
-        help_text="State name for state-based obfuscation.",
     )
     opt_out = models.BooleanField(
         default=True,
@@ -122,13 +114,7 @@ class DiscordRoleObfuscation(models.Model):
         ordering = ["group__name"]
 
     def __str__(self):
-        return self.subject_name or "Unknown"
-
-    @property
-    def subject_name(self):
-        if self.group:
-            return self.group.name
-        return (self.state_name or "").strip()
+        return self.group.name
 
     def get_dividers(self):
         return [d for d in self.divider_characters.split(",") if d]
