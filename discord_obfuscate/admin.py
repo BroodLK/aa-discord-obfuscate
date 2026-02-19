@@ -11,7 +11,7 @@ from solo.admin import SingletonModelAdmin
 
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
-from discord_obfuscate.config import sync_on_save_enabled
+from discord_obfuscate.config import default_obfuscation_values, sync_on_save_enabled
 from discord_obfuscate.forms import (
     DiscordObfuscateConfigForm,
     DiscordRoleObfuscationForm,
@@ -114,11 +114,13 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         roleset = fetch_roleset(use_cache=True)
         role_names = {role.name for role in roleset}
         groups = Group.objects.filter(name__in=role_names)
+        defaults = default_obfuscation_values()
+        defaults.setdefault("obfuscation_type", DISCORD_OBFUSCATE_DEFAULT_METHOD)
         created = 0
         for group in groups:
             _, was_created = DiscordRoleObfuscation.objects.get_or_create(
                 group=group,
-                defaults={"obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD},
+                defaults=defaults,
             )
             if was_created:
                 created += 1
@@ -211,6 +213,13 @@ class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
     form = DiscordObfuscateConfigForm
     fields = (
         "sync_on_save",
+        "default_opt_out",
+        "default_use_random_key",
+        "default_random_key_rotate_name",
+        "default_random_key_rotate_position",
+        "default_obfuscation_type",
+        "default_divider_characters",
+        "default_min_chars_before_divider",
         "random_key_rotation_enabled",
         "role_color_rule_sync_enabled",
         "periodic_sync_enabled",

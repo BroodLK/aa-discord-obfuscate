@@ -11,7 +11,7 @@ from django.contrib.auth.models import Group
 
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
-from discord_obfuscate.config import sync_on_save_enabled
+from discord_obfuscate.config import default_obfuscation_values, sync_on_save_enabled
 from discord_obfuscate.forms import DiscordRoleObfuscationForm
 from discord_obfuscate.models import DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
@@ -52,9 +52,11 @@ def index(request: WSGIRequest) -> HttpResponse:
 
     for group in managed_groups:
         if group.id not in configs:
+            defaults = default_obfuscation_values()
+            defaults.setdefault("obfuscation_type", DISCORD_OBFUSCATE_DEFAULT_METHOD)
             configs[group.id], _ = DiscordRoleObfuscation.objects.get_or_create(
                 group=group,
-                defaults={"obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD},
+                defaults=defaults,
             )
 
     FormSet = modelformset_factory(

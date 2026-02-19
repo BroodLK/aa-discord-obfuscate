@@ -15,6 +15,7 @@ from django.contrib.auth.models import Group
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
 from discord_obfuscate.config import (
+    default_obfuscation_values,
     periodic_sync_enabled,
     random_key_rotation_enabled,
     role_color_rule_sync_enabled,
@@ -174,9 +175,9 @@ def sync_group_role(group_id: int) -> bool:
         logger.warning("Group with id %s no longer exists", group_id)
         return False
 
-    config, _ = DiscordRoleObfuscation.objects.get_or_create(
-        group=group, defaults={"obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD}
-    )
+    defaults = default_obfuscation_values()
+    defaults.setdefault("obfuscation_type", DISCORD_OBFUSCATE_DEFAULT_METHOD)
+    config, _ = DiscordRoleObfuscation.objects.get_or_create(group=group, defaults=defaults)
     return _sync_config(config)
 
 

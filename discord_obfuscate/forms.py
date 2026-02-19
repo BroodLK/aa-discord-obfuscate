@@ -5,9 +5,11 @@ import re
 
 # Django
 from django import forms
+from django.apps import apps
 
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
+from discord_obfuscate.config import default_obfuscation_values
 from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
 from discord_obfuscate.obfuscation import (
     generate_random_key,
@@ -71,6 +73,29 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.instance or not self.instance.pk:
+            defaults = default_obfuscation_values()
+            self.fields["opt_out"].initial = defaults.get("opt_out", False)
+            self.fields["use_random_key"].initial = defaults.get("use_random_key", False)
+            self.fields["random_key_rotate_name"].initial = defaults.get(
+                "random_key_rotate_name", True
+            )
+            self.fields["random_key_rotate_position"].initial = defaults.get(
+                "random_key_rotate_position", True
+            )
+            self.fields["obfuscation_type"].initial = defaults.get("obfuscation_type")
+            divider_chars = defaults.get("divider_characters") or ""
+            if divider_chars:
+                self.fields["divider_characters"].initial = [
+                    d for d in divider_chars.split(",") if d
+                ]
+            self.fields["min_chars_before_divider"].initial = defaults.get(
+                "min_chars_before_divider", 0
+            )
+        self._state_choices = self._load_state_choices()
+        if "state_name" in self.fields and self._state_choices:
+            self.fields["state_name"].widget = forms.Select()
+            self.fields["state_name"].choices = [("", "---------")] + self._state_choices
         if "group" in self.fields:
             self.fields["group"].required = False
         if self.instance and self.instance.pk:
@@ -84,6 +109,17 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
                 )
         if "random_key" in self.fields:
             self.fields["random_key"].widget.attrs["readonly"] = "readonly"
+
+    @staticmethod
+    def _load_state_choices():
+        try:
+            model = apps.get_model("authentication", "State")
+        except Exception:
+            return []
+        if not model:
+            return []
+        names = list(model.objects.values_list("name", flat=True))
+        return [(name, name) for name in sorted(names)]
 
     def clean_divider_characters(self):
         values = self.cleaned_data.get("divider_characters") or []
@@ -154,6 +190,10 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             self.add_error("group", "Choose either a group or a state, not both.")
         if not group and not state_name:
             self.add_error("state_name", "A state or a group is required.")
+        if state_name and self._state_choices:
+            allowed_states = {name for name, _ in self._state_choices}
+            if state_name not in allowed_states:
+                self.add_error("state_name", "Select a valid state.")
         opt_out = cleaned.get("opt_out")
         if opt_out:
             cleaned["custom_name"] = ""
@@ -184,6 +224,37 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 class DiscordObfuscateConfigForm(forms.ModelForm):
     """Form for global Discord obfuscation settings."""
 
+    default_divider_characters = forms.MultipleChoiceField(
+        required=False,
+        choices=DIVIDER_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        label="Default dividers",
+    )
+
     class Meta:
         model = DiscordObfuscateConfig
         fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = getattr(self, "instance", None)
+        if instance and instance.default_divider_characters:
+            self.fields["default_divider_characters"].initial = [
+                d
+                for d in instance.default_divider_characters.split(",")
+                if d in ALLOWED_DIVIDERS
+            ]
+
+    def clean_default_divider_characters(self):
+        values = self.cleaned_data.get("default_divider_characters") or []
+        return [val for val in values if val in ALLOWED_DIVIDERS]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        values = self.cleaned_data.get("default_divider_characters") or []
+        instance.default_divider_characters = ",".join(
+            [val for val in values if val in ALLOWED_DIVIDERS]
+        )
+        if commit:
+            instance.save()
+        return instance

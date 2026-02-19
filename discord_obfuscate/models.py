@@ -148,6 +148,38 @@ class DiscordObfuscateConfig(SingletonModel):
         default=True,
         help_text="Queue a role rename task when a config is saved in admin.",
     )
+    default_opt_out = models.BooleanField(
+        default=False,
+        help_text="Default opt-out for newly created entries.",
+    )
+    default_use_random_key = models.BooleanField(
+        default=False,
+        help_text="Default random key setting for newly created entries.",
+    )
+    default_random_key_rotate_name = models.BooleanField(
+        default=True,
+        help_text="Default rotate-name setting for new random-key entries.",
+    )
+    default_random_key_rotate_position = models.BooleanField(
+        default=True,
+        help_text="Default rotate-position setting for new random-key entries.",
+    )
+    default_obfuscation_type = models.CharField(
+        max_length=32,
+        choices=[(key, label) for key, (label, _, _) in OBFUSCATION_METHODS.items()],
+        default="sha256_base32",
+        help_text="Default obfuscation type for new entries.",
+    )
+    default_divider_characters = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Default divider characters for new entries.",
+    )
+    default_min_chars_before_divider = models.PositiveIntegerField(
+        default=0,
+        help_text="Default minimum chars before divider for new entries.",
+    )
     random_key_rotation_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic rotation of random obfuscation keys.",
