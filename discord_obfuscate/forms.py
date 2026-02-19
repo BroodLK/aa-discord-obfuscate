@@ -200,7 +200,19 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
 
     class Meta:
         model = DiscordObfuscateConfig
-        fields = "__all__"
+        fields = [
+            "sync_on_save",
+            "default_opt_out",
+            "default_use_random_key",
+            "default_random_key_rotate_name",
+            "default_random_key_rotate_position",
+            "default_obfuscation_type",
+            "default_divider_characters",
+            "default_min_chars_before_divider",
+            "random_key_rotation_enabled",
+            "role_color_rule_sync_enabled",
+            "periodic_sync_enabled",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

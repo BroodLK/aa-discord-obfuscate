@@ -174,71 +174,9 @@ class DiscordObfuscateConfig(SingletonModel):
         default=False,
         help_text="Enable periodic sync for role color rules.",
     )
-    role_color_rule_sync_minute = models.CharField(
-        max_length=32,
-        default="0",
-        help_text="Cron minute field for role color sync.",
-    )
-    role_color_rule_sync_hour = models.CharField(
-        max_length=32,
-        default="*/1",
-        help_text="Cron hour field for role color sync.",
-    )
-    role_color_rule_sync_day_of_week = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_week field for role color sync.",
-    )
-    role_color_rule_sync_day_of_month = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_month field for role color sync.",
-    )
-    role_color_rule_sync_month_of_year = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron month_of_year field for role color sync.",
-    )
-    role_color_rule_sync_timezone = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="Timezone for role color sync (blank uses project timezone).",
-    )
     periodic_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic full sync of roles via Celery beat.",
-    )
-    periodic_sync_minute = models.CharField(
-        max_length=32,
-        default="0",
-        help_text="Cron minute field for periodic sync.",
-    )
-    periodic_sync_hour = models.CharField(
-        max_length=32,
-        default="*/1",
-        help_text="Cron hour field for periodic sync.",
-    )
-    periodic_sync_day_of_week = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_week field for periodic sync.",
-    )
-    periodic_sync_day_of_month = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_month field for periodic sync.",
-    )
-    periodic_sync_month_of_year = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron month_of_year field for periodic sync.",
-    )
-    periodic_sync_timezone = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="Timezone for periodic sync (blank uses project timezone).",
     )
 
     class Meta:
