@@ -78,7 +78,8 @@ python manage.py migrate
 ### Optional Periodic Sync<a name="periodic-sync"></a>
 
 If you want a periodic safety sync, enable it in the Discord Obfuscate config
-in Django admin. The setup command will create an hourly task:
+in Django admin. The setup command will create an hourly task (tasks exit early
+when disabled):
 
 ```bash
 python manage.py obfuscate_setup
@@ -89,7 +90,8 @@ python manage.py obfuscate_setup
 Create role color rules in Django admin to match role name patterns (use `*` as
 the wildcard). Periodic sync will assign a random unused color from a 250-color
 palette to newly created matching roles. Enable the role color sync option in
-Discord Obfuscate config. The setup command will create an hourly task.
+Discord Obfuscate config. The setup command will create an hourly task (tasks
+exit early when disabled).
 
 ### Random Key Rotation<a name="random-key-rotation"></a>
 
@@ -105,7 +107,7 @@ Each random-key entry can opt out of renaming or repositioning via the two
 checkboxes shown when `Use random key` is enabled.
 
 Run `python manage.py obfuscate_setup` after enabling the rotation option to
-create the periodic task (default: every 3 days).
+create the periodic task (default: every 3 days; tasks exit early when disabled).
 
 ### Admin Labels<a name="admin-labels"></a>
 

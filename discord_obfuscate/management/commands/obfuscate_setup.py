@@ -5,11 +5,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 # Discord Obfuscate App
-from discord_obfuscate.config import (
-    periodic_sync_enabled,
-    random_key_rotation_enabled,
-    role_color_rule_sync_enabled,
-)
 
 
 class Command(BaseCommand):
@@ -44,24 +39,21 @@ class Command(BaseCommand):
             PeriodicTask,
             CrontabSchedule,
             "discord_obfuscate_sync_all_roles",
-            "discord_obfuscate.tasks.sync_all_roles",
-            periodic_sync_enabled(),
+            "discord_obfuscate.tasks.periodic_sync_all_roles",
             hourly,
         )
         self._ensure_periodic_task(
             PeriodicTask,
             CrontabSchedule,
             "discord_obfuscate_rotate_random_keys",
-            "discord_obfuscate.tasks.rotate_random_keys_and_reorder_roles",
-            random_key_rotation_enabled(),
+            "discord_obfuscate.tasks.periodic_rotate_random_keys",
             every_three_days,
         )
         self._ensure_periodic_task(
             PeriodicTask,
             CrontabSchedule,
             "discord_obfuscate_sync_role_colors",
-            "discord_obfuscate.tasks.sync_role_color_rules",
-            role_color_rule_sync_enabled(),
+            "discord_obfuscate.tasks.periodic_sync_role_colors",
             hourly,
         )
 
@@ -71,19 +63,8 @@ class Command(BaseCommand):
         CrontabSchedule,
         name: str,
         task_path: str,
-        enabled: bool,
         schedule: dict,
     ):
-        if not enabled:
-            task = PeriodicTask.objects.filter(name=name).first()
-            if task and task.enabled:
-                task.enabled = False
-                task.save(update_fields=["enabled"])
-                self.stdout.write(f"Disabled periodic task '{name}'.")
-            else:
-                self.stdout.write(f"Periodic task '{name}' is disabled.")
-            return
-
         minute = schedule.get("minute", "0")
         hour = schedule.get("hour", "*/1")
         day_of_week = schedule.get("day_of_week", "*")
@@ -93,10 +74,16 @@ class Command(BaseCommand):
 
         task = PeriodicTask.objects.filter(name=name).first()
         if task:
+            update_fields = []
+            if task.task != task_path:
+                task.task = task_path
+                update_fields.append("task")
             if not task.enabled:
                 task.enabled = True
-                task.save(update_fields=["enabled"])
-                self.stdout.write(f"Enabled periodic task '{name}'.")
+                update_fields.append("enabled")
+            if update_fields:
+                task.save(update_fields=update_fields)
+                self.stdout.write(f"Updated periodic task '{name}'.")
             else:
                 self.stdout.write(f"Periodic task '{name}' already exists.")
             return

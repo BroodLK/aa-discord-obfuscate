@@ -138,37 +138,6 @@ class DiscordObfuscateConfig(SingletonModel):
         default=False,
         help_text="Enable periodic rotation of random obfuscation keys.",
     )
-    random_key_rotation_minute = models.CharField(
-        max_length=32,
-        default="0",
-        help_text="Cron minute field for random key rotation.",
-    )
-    random_key_rotation_hour = models.CharField(
-        max_length=32,
-        default="0",
-        help_text="Cron hour field for random key rotation.",
-    )
-    random_key_rotation_day_of_week = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_week field for random key rotation.",
-    )
-    random_key_rotation_day_of_month = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron day_of_month field for random key rotation.",
-    )
-    random_key_rotation_month_of_year = models.CharField(
-        max_length=32,
-        default="*",
-        help_text="Cron month_of_year field for random key rotation.",
-    )
-    random_key_rotation_timezone = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="Timezone for random key rotation (blank uses project timezone).",
-    )
     role_color_rule_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic sync for role color rules.",

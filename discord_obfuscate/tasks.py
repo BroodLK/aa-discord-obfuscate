@@ -13,6 +13,11 @@ from django.contrib.auth.models import Group
 # Alliance Auth
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
+from discord_obfuscate.config import (
+    periodic_sync_enabled,
+    random_key_rotation_enabled,
+    role_color_rule_sync_enabled,
+)
 from discord_obfuscate.obfuscation import (
     fetch_roleset,
     generate_random_key,
@@ -73,10 +78,9 @@ def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
     return _update_role(role_id, name=new_name, color=color)
 
 
-def _reorder_roles_bottom(roleset, role_ids: list[int]) -> bool:
+def _reorder_roles_bottom(role_ids: list[int]) -> bool:
     if not role_ids:
         return True
-    role_id_set = set(role_ids)
     try:
         from allianceauth.services.modules.discord.core import (
             default_bot_client,
@@ -85,14 +89,10 @@ def _reorder_roles_bottom(roleset, role_ids: list[int]) -> bool:
 
         shuffled = list(role_ids)
         random.SystemRandom().shuffle(shuffled)
-        other_roles = [
-            role
-            for role in roleset
-            if role.id not in role_id_set and getattr(role, "position", 0) > 0
+        payload = [
+            {"id": role_id, "position": index + 1}
+            for index, role_id in enumerate(shuffled)
         ]
-        other_roles.sort(key=lambda role: (getattr(role, "position", 0), role.id))
-        final_ids = shuffled + [role.id for role in other_roles]
-        payload = [{"id": role_id, "position": index + 1} for index, role_id in enumerate(final_ids)]
         route = f"guilds/{DISCORD_GUILD_ID}/roles"
         default_bot_client._api_request(method="patch", route=route, data=payload)
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
@@ -321,5 +321,26 @@ def rotate_random_keys_and_reorder_roles() -> int:
             role_ids.append(role.id)
 
     unique_role_ids = list(dict.fromkeys(role_ids))
-    _reorder_roles_bottom(roleset, unique_role_ids)
+    _reorder_roles_bottom(unique_role_ids)
     return updated
+
+
+@shared_task
+def periodic_sync_all_roles() -> int:
+    if not periodic_sync_enabled():
+        return 0
+    return sync_all_roles()
+
+
+@shared_task
+def periodic_sync_role_colors() -> int:
+    if not role_color_rule_sync_enabled():
+        return 0
+    return sync_role_color_rules()
+
+
+@shared_task
+def periodic_rotate_random_keys() -> int:
+    if not random_key_rotation_enabled():
+        return 0
+    return rotate_random_keys_and_reorder_roles()
