@@ -19,6 +19,9 @@ ______________________________________________________________________
   - [Installation](#installation)
   - [Usage](#usage)
     - [Optional Periodic Sync](#periodic-sync)
+    - [Role Color Rules](#role-color-rules)
+    - [Random Key Rotation](#random-key-rotation)
+    - [Admin Labels](#admin-labels)
   - [How It Works](#how-it-works)
   - [Troubleshooting](#troubleshooting)
   - [Development](#development)
@@ -30,8 +33,10 @@ ______________________________________________________________________
 ## Features<a name="features"></a>
 
 - Obfuscates Discord role names for Alliance Auth groups using HMAC hashes.
-- Per-group controls in Django admin: opt out, custom name override, method, format, dividers.
+- Per-group controls in Django admin: opt out, custom name override, method, format, dividers, and role color.
 - Optional per-group role color applied during sync.
+- Optional per-group random key mode with periodic rotation and role shuffling.
+- Pattern-based role color rules for new roles.
 - Preview and bulk sync actions in Django admin.
 - Optional automatic sync on save via Celery tasks.
 
@@ -73,11 +78,39 @@ python manage.py migrate
 ### Optional Periodic Sync<a name="periodic-sync"></a>
 
 If you want a periodic safety sync, enable it in the Discord Obfuscate config
-in Django admin and then run:
+in Django admin. The setup command will create an hourly task:
 
 ```bash
-python manage.py discord_obfuscate_setup_periodic_tasks
+python manage.py obfuscate_setup
 ```
+
+### Role Color Rules<a name="role-color-rules"></a>
+
+Create role color rules in Django admin to match role name patterns (use `*` as
+the wildcard). Periodic sync will assign a random unused color from a 250-color
+palette to newly created matching roles. Enable the role color sync option in
+Discord Obfuscate config. The setup command will create an hourly task.
+
+### Random Key Rotation<a name="random-key-rotation"></a>
+
+Enable `Use random key` on a per-group basis to generate a 16-character
+alphanumeric key that replaces the group name for obfuscation input. When the
+random-key rotation task is enabled in Discord Obfuscate config, it will:
+
+- Rotate keys for entries with `Use random key` enabled.
+- Rename those roles to the newly obfuscated names.
+- Shuffle those roles into the bottom positions in a random order.
+
+Each random-key entry can opt out of renaming or repositioning via the two
+checkboxes shown when `Use random key` is enabled.
+
+Run `python manage.py obfuscate_setup` after enabling the rotation option to
+create the periodic task (default: every 3 days).
+
+### Admin Labels<a name="admin-labels"></a>
+
+The admin uses title-cased labels for the new sections and shows
+`Obfuscated Name` for the last obfuscated role name field.
 
 ### Per-Group Options (Admin)
 
@@ -85,6 +118,7 @@ These options are configured per group in Django admin:
 
 - Opt out of obfuscation and keep the original group name.
 - Provide a custom name override.
+- Use a random key (16 chars) for obfuscation input.
 - Choose the hashing method (SHA256/BLAKE2s, hex/base32).
 - Customize the output format and dividers.
 - Sync role names immediately for selected groups or all groups.

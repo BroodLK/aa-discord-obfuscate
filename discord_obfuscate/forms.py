@@ -9,7 +9,7 @@ from django import forms
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
 from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
-from discord_obfuscate.obfuscation import role_name_for_group
+from discord_obfuscate.obfuscation import generate_random_key, role_name_for_group
 
 DIVIDER_CHOICES = [(char, char) for char in ALLOWED_DIVIDERS]
 PLACEHOLDER_PATTERN = re.compile(r"\{hash8\}|\{hash12\}|\{hash16\}|\{prefix\}")
@@ -30,6 +30,12 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         label="Preview",
         widget=forms.TextInput(attrs={"readonly": "readonly"}),
     )
+    random_key = forms.CharField(
+        required=False,
+        label="Random key",
+        widget=forms.TextInput(attrs={"readonly": "readonly"}),
+        help_text="Generated automatically when random key mode is enabled.",
+    )
     role_color = forms.CharField(
         required=False,
         label="Role color",
@@ -46,6 +52,10 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             "divider_characters",
             "min_chars_before_divider",
             "custom_name",
+            "use_random_key",
+            "random_key",
+            "random_key_rotate_name",
+            "random_key_rotate_position",
             "role_color",
             "preview",
         ]
@@ -61,6 +71,8 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             self.fields["preview"].initial = role_name_for_group(
                 self.instance.group, self.instance
             )
+        if "random_key" in self.fields:
+            self.fields["random_key"].widget.attrs["readonly"] = "readonly"
 
     def clean_divider_characters(self):
         values = self.cleaned_data.get("divider_characters") or []
@@ -111,11 +123,28 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
                 raise forms.ValidationError("Color must be valid hex.")
         return value.lower()
 
+    def clean_random_key(self):
+        value = (self.cleaned_data.get("random_key") or "").strip()
+        if not value:
+            return ""
+        if len(value) != 16:
+            raise forms.ValidationError("Random key must be 16 characters.")
+        if not value.isalnum():
+            raise forms.ValidationError("Random key must be alphanumeric.")
+        return value
+
     def clean(self):
         cleaned = super().clean()
         opt_out = cleaned.get("opt_out")
         if opt_out:
             cleaned["custom_name"] = ""
+        use_random_key = cleaned.get("use_random_key")
+        if use_random_key:
+            cleaned["random_key"] = cleaned.get("random_key") or generate_random_key(16)
+        else:
+            cleaned["random_key"] = ""
+            cleaned["random_key_rotate_name"] = False
+            cleaned["random_key_rotate_position"] = False
         dividers = cleaned.get("divider_characters") or []
         min_chars = cleaned.get("min_chars_before_divider") or 0
         if dividers and min_chars < 1:

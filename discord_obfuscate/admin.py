@@ -16,8 +16,17 @@ from discord_obfuscate.forms import (
     DiscordObfuscateConfigForm,
     DiscordRoleObfuscationForm,
 )
-from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
-from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
+from discord_obfuscate.models import (
+    DiscordObfuscateConfig,
+    DiscordRoleColorAssignment,
+    DiscordRoleColorRule,
+    DiscordRoleObfuscation,
+)
+from discord_obfuscate.obfuscation import (
+    fetch_roleset,
+    generate_random_key,
+    role_name_for_group,
+)
 from discord_obfuscate.tasks import sync_all_roles, sync_group_role
 
 # Register your models here.
@@ -30,6 +39,9 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "group",
         "role_exists",
         "opt_out",
+        "use_random_key",
+        "random_key_rotate_name",
+        "random_key_rotate_position",
         "obfuscation_type",
         "custom_name",
         "last_obfuscated_name",
@@ -41,6 +53,10 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "group",
         "opt_out",
         "custom_name",
+        "use_random_key",
+        "random_key",
+        "random_key_rotate_name",
+        "random_key_rotate_position",
         "role_color",
         "obfuscation_type",
         "obfuscation_format",
@@ -146,6 +162,14 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             return JsonResponse({"preview": ""})
 
         custom_name = (request.POST.get("custom_name") or "").strip()
+        use_random_key = request.POST.get("use_random_key") in {"on", "true", "1"}
+        random_key = (request.POST.get("random_key") or "").strip()
+        rotate_name = request.POST.get("random_key_rotate_name") in {"on", "true", "1"}
+        rotate_position = request.POST.get("random_key_rotate_position") in {
+            "on",
+            "true",
+            "1",
+        }
         opt_out = request.POST.get("opt_out") in {"on", "true", "1"}
         obfuscation_type = request.POST.get("obfuscation_type")
         obfuscation_format = (request.POST.get("obfuscation_format") or "").strip()
@@ -160,6 +184,10 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             obfuscation_format=obfuscation_format,
             custom_name=custom_name,
             min_chars_before_divider=min_chars,
+            use_random_key=use_random_key,
+            random_key=random_key or (generate_random_key(16) if use_random_key else ""),
+            random_key_rotate_name=rotate_name if use_random_key else False,
+            random_key_rotate_position=rotate_position if use_random_key else False,
         )
         temp_config.set_dividers(dividers)
         preview = role_name_for_group(temp_group, temp_config)
@@ -172,11 +200,45 @@ class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
     form = DiscordObfuscateConfigForm
     fields = (
         "sync_on_save",
+        "random_key_rotation_enabled",
+        "role_color_rule_sync_enabled",
         "periodic_sync_enabled",
-        "periodic_sync_minute",
-        "periodic_sync_hour",
-        "periodic_sync_day_of_week",
-        "periodic_sync_day_of_month",
-        "periodic_sync_month_of_year",
-        "periodic_sync_timezone",
     )
+
+
+class DiscordRoleColorAssignmentInline(admin.TabularInline):
+    model = DiscordRoleColorAssignment
+    extra = 0
+    fields = ("role_name", "role_id", "color", "updated_at")
+    readonly_fields = ("role_name", "role_id", "color", "updated_at")
+    can_delete = False
+    show_change_link = False
+
+
+@admin.register(DiscordRoleColorRule)
+class DiscordRoleColorRuleAdmin(admin.ModelAdmin):
+    list_display = ("name", "pattern", "enabled", "priority", "updated_at")
+    list_filter = ("enabled",)
+    search_fields = ("name", "pattern")
+    fields = (
+        "name",
+        "pattern",
+        "enabled",
+        "case_sensitive",
+        "priority",
+    )
+    inlines = [DiscordRoleColorAssignmentInline]
+
+
+@admin.register(DiscordRoleColorAssignment)
+class DiscordRoleColorAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("role_name", "color", "rule", "updated_at")
+    list_filter = ("rule",)
+    search_fields = ("role_name", "color")
+    readonly_fields = ("rule", "role_name", "role_id", "color", "created_at", "updated_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

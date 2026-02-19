@@ -61,6 +61,33 @@ class DiscordRoleObfuscation(models.Model):
         default="",
         help_text="If set, overrides the obfuscation method.",
     )
+    use_random_key = models.BooleanField(
+        default=False,
+        help_text=(
+            "If enabled, obfuscation uses a random key instead of the group name. "
+            "Rotation tasks only apply to entries with this enabled."
+        ),
+    )
+    random_key = models.CharField(
+        max_length=16,
+        blank=True,
+        default="",
+        help_text="Random 16-character key used for obfuscation when enabled.",
+    )
+    random_key_rotate_name = models.BooleanField(
+        default=True,
+        help_text=(
+            "Allow the rotation task to rename this role. "
+            "Only applies when random key mode is enabled."
+        ),
+    )
+    random_key_rotate_position = models.BooleanField(
+        default=True,
+        help_text=(
+            "Allow the rotation task to reposition this role. "
+            "Only applies when random key mode is enabled."
+        ),
+    )
     role_color = models.CharField(
         max_length=7,
         blank=True,
@@ -76,13 +103,14 @@ class DiscordRoleObfuscation(models.Model):
         max_length=100,
         blank=True,
         default="",
+        verbose_name="Obfuscated Name",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Discord role obfuscation"
-        verbose_name_plural = "Discord role obfuscations"
+        verbose_name = "Discord Role Obfuscation"
+        verbose_name_plural = "Discord Role Obfuscations"
         ordering = ["group__name"]
 
     def __str__(self):
@@ -105,6 +133,76 @@ class DiscordObfuscateConfig(SingletonModel):
     sync_on_save = models.BooleanField(
         default=True,
         help_text="Queue a role rename task when a config is saved in admin.",
+    )
+    random_key_rotation_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable periodic rotation of random obfuscation keys.",
+    )
+    random_key_rotation_minute = models.CharField(
+        max_length=32,
+        default="0",
+        help_text="Cron minute field for random key rotation.",
+    )
+    random_key_rotation_hour = models.CharField(
+        max_length=32,
+        default="0",
+        help_text="Cron hour field for random key rotation.",
+    )
+    random_key_rotation_day_of_week = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_week field for random key rotation.",
+    )
+    random_key_rotation_day_of_month = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_month field for random key rotation.",
+    )
+    random_key_rotation_month_of_year = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron month_of_year field for random key rotation.",
+    )
+    random_key_rotation_timezone = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Timezone for random key rotation (blank uses project timezone).",
+    )
+    role_color_rule_sync_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable periodic sync for role color rules.",
+    )
+    role_color_rule_sync_minute = models.CharField(
+        max_length=32,
+        default="0",
+        help_text="Cron minute field for role color sync.",
+    )
+    role_color_rule_sync_hour = models.CharField(
+        max_length=32,
+        default="*/1",
+        help_text="Cron hour field for role color sync.",
+    )
+    role_color_rule_sync_day_of_week = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_week field for role color sync.",
+    )
+    role_color_rule_sync_day_of_month = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron day_of_month field for role color sync.",
+    )
+    role_color_rule_sync_month_of_year = models.CharField(
+        max_length=32,
+        default="*",
+        help_text="Cron month_of_year field for role color sync.",
+    )
+    role_color_rule_sync_timezone = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Timezone for role color sync (blank uses project timezone).",
     )
     periodic_sync_enabled = models.BooleanField(
         default=False,
@@ -143,7 +241,69 @@ class DiscordObfuscateConfig(SingletonModel):
     )
 
     class Meta:
-        verbose_name = "Discord Obfuscate config"
+        verbose_name = "Discord Obfuscate Config"
 
     def __str__(self):
         return "Discord Obfuscate config"
+
+
+class DiscordRoleColorRule(models.Model):
+    """Rule for assigning random colors to matching roles."""
+
+    name = models.CharField(
+        max_length=100,
+        help_text="Rule name shown in admin.",
+    )
+    pattern = models.CharField(
+        max_length=150,
+        help_text="Role name pattern. Use * as a wildcard.",
+    )
+    enabled = models.BooleanField(
+        default=True,
+        help_text="Enable automatic color assignment for this rule.",
+    )
+    case_sensitive = models.BooleanField(
+        default=False,
+        help_text="Match role names with case sensitivity.",
+    )
+    priority = models.PositiveIntegerField(
+        default=100,
+        help_text="Lower numbers run first when multiple rules match.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["priority", "name"]
+        verbose_name = "Discord Role Color Rule"
+        verbose_name_plural = "Discord Role Color Rules"
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class DiscordRoleColorAssignment(models.Model):
+    """Assigned color for a Discord role."""
+
+    rule = models.ForeignKey(
+        DiscordRoleColorRule,
+        on_delete=models.CASCADE,
+        related_name="assignments",
+    )
+    role_id = models.BigIntegerField()
+    role_name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["rule", "role_name"]
+        verbose_name = "Discord Role Color Assignment"
+        verbose_name_plural = "Discord Role Color Assignments"
+        constraints = [
+            models.UniqueConstraint(fields=["role_id"], name="unique_role_color_role"),
+            models.UniqueConstraint(fields=["color"], name="unique_role_color_value"),
+        ]
+
+    def __str__(self):
+        return f"{self.role_name} ({self.color})"

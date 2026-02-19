@@ -6,6 +6,8 @@ import hashlib
 import hmac
 import itertools
 import logging
+import secrets
+import string
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -34,6 +36,11 @@ from discord_obfuscate.models import DiscordRoleObfuscation
 
 logger = logging.getLogger(__name__)
 
+RANDOM_KEY_CHARS = string.ascii_letters + string.digits
+
+
+def generate_random_key(length: int = 16) -> str:
+    return "".join(secrets.choice(RANDOM_KEY_CHARS) for _ in range(length))
 
 
 
@@ -144,8 +151,11 @@ def role_name_for_group(
     format_str = config.obfuscation_format if config else DISCORD_OBFUSCATE_FORMAT
     dividers = config.get_dividers() if config else []
     min_chars = config.min_chars_before_divider if config else 0
+    input_name = group.name
+    if config and config.use_random_key and config.random_key:
+        input_name = config.random_key
     return obfuscate_name(
-        group.name,
+        input_name,
         method,
         DISCORD_OBFUSCATE_SECRET,
         DISCORD_OBFUSCATE_PREFIX,

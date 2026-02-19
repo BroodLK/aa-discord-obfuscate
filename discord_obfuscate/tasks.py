@@ -2,6 +2,8 @@
 
 # Standard Library
 import logging
+import random
+from fnmatch import fnmatchcase
 
 # Third Party
 from celery import shared_task
@@ -11,8 +13,23 @@ from django.contrib.auth.models import Group
 # Alliance Auth
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
-from discord_obfuscate.obfuscation import fetch_roleset, role_name_for_group
-from discord_obfuscate.models import DiscordRoleObfuscation
+from discord_obfuscate.obfuscation import (
+    fetch_roleset,
+    generate_random_key,
+    role_name_for_group,
+)
+from discord_obfuscate.role_colors import (
+    available_colors,
+    build_palette,
+    select_random_color,
+    to_hex,
+    to_int,
+)
+from discord_obfuscate.models import (
+    DiscordRoleColorAssignment,
+    DiscordRoleColorRule,
+    DiscordRoleObfuscation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +43,8 @@ def _find_role_by_id(roleset, role_id):
     return None
 
 
-def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
-    """Rename a Discord role via bot client."""
+def _update_role(role_id: int, name: str | None = None, color: int | None = None) -> bool:
+    """Update a Discord role via bot client."""
     try:
         from allianceauth.services.modules.discord.core import (
             default_bot_client,
@@ -35,15 +52,54 @@ def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
         )
 
         route = f"guilds/{DISCORD_GUILD_ID}/roles/{role_id}"
-        data = {"name": new_name}
+        data = {}
+        if name is not None:
+            data["name"] = name
         if color is not None:
             data["color"] = color
+        if not data:
+            return True
         default_bot_client._api_request(method="patch", route=route, data=data)
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
-        logger.info("Renamed Discord role %s to %s", role_id, new_name)
+        logger.info("Updated Discord role %s", role_id)
         return True
     except Exception:
-        logger.exception("Failed to rename role %s to %s", role_id, new_name)
+        logger.exception("Failed to update role %s", role_id)
+        return False
+
+
+def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
+    """Rename a Discord role via bot client."""
+    return _update_role(role_id, name=new_name, color=color)
+
+
+def _reorder_roles_bottom(roleset, role_ids: list[int]) -> bool:
+    if not role_ids:
+        return True
+    role_id_set = set(role_ids)
+    try:
+        from allianceauth.services.modules.discord.core import (
+            default_bot_client,
+            DISCORD_GUILD_ID,
+        )
+
+        shuffled = list(role_ids)
+        random.SystemRandom().shuffle(shuffled)
+        other_roles = [
+            role
+            for role in roleset
+            if role.id not in role_id_set and getattr(role, "position", 0) > 0
+        ]
+        other_roles.sort(key=lambda role: (getattr(role, "position", 0), role.id))
+        final_ids = shuffled + [role.id for role in other_roles]
+        payload = [{"id": role_id, "position": index + 1} for index, role_id in enumerate(final_ids)]
+        route = f"guilds/{DISCORD_GUILD_ID}/roles"
+        default_bot_client._api_request(method="patch", route=route, data=payload)
+        default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
+        logger.info("Reordered %s roles to the bottom", len(shuffled))
+        return True
+    except Exception:
+        logger.exception("Failed to reorder roles")
         return False
 
 
@@ -59,6 +115,9 @@ def sync_group_role(group_id: int) -> bool:
     config, _ = DiscordRoleObfuscation.objects.get_or_create(
         group=group, defaults={"obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD}
     )
+    if config.use_random_key and not config.random_key:
+        config.random_key = generate_random_key(16)
+        config.save(update_fields=["random_key", "updated_at"])
     roleset = fetch_roleset(use_cache=False)
     desired_name = role_name_for_group(group, config)
     logger.debug("Sync role for group %s -> %s", group.name, desired_name)
@@ -129,3 +188,138 @@ def sync_all_roles() -> int:
         if sync_group_role(group_id):
             count += 1
     return count
+
+
+def _role_name_matches(rule: DiscordRoleColorRule, role_name: str) -> bool:
+    pattern = rule.pattern or ""
+    if not pattern:
+        return False
+    if rule.case_sensitive:
+        return fnmatchcase(role_name, pattern)
+    return fnmatchcase(role_name.lower(), pattern.lower())
+
+
+@shared_task
+def sync_role_color_rules() -> int:
+    """Assign colors to roles based on matching rules."""
+    rules = list(
+        DiscordRoleColorRule.objects.filter(enabled=True).order_by("priority", "id")
+    )
+    if not rules:
+        return 0
+
+    pinned_role_ids = set(
+        DiscordRoleObfuscation.objects.exclude(role_color="")
+        .exclude(role_id=None)
+        .values_list("role_id", flat=True)
+    )
+
+    roleset = fetch_roleset(use_cache=False)
+    roles_by_id = {role.id: role for role in roleset}
+
+    existing_assignments = list(DiscordRoleColorAssignment.objects.all())
+    stale_assignments = [
+        assignment
+        for assignment in existing_assignments
+        if assignment.role_id not in roles_by_id
+    ]
+    if stale_assignments:
+        DiscordRoleColorAssignment.objects.filter(
+            id__in=[assignment.id for assignment in stale_assignments]
+        ).delete()
+        existing_assignments = [
+            assignment
+            for assignment in existing_assignments
+            if assignment.role_id in roles_by_id
+        ]
+
+    assigned_role_ids = {assignment.role_id for assignment in existing_assignments}
+
+    used_colors = set()
+    for assignment in existing_assignments:
+        value = to_int(assignment.color)
+        if value is not None:
+            used_colors.add(value)
+
+    for role in roleset:
+        color_value = getattr(role, "color", 0) or 0
+        if color_value:
+            used_colors.add(int(color_value))
+
+    palette = build_palette()
+    available = available_colors(palette, used_colors)
+    created = 0
+
+    for rule in rules:
+        for role in roleset:
+            if role.id in assigned_role_ids:
+                continue
+            if role.id in pinned_role_ids:
+                continue
+            if not _role_name_matches(rule, role.name):
+                continue
+            existing_color = getattr(role, "color", 0) or 0
+            if existing_color:
+                continue
+            color_value = select_random_color(available)
+            if color_value is None:
+                logger.warning("No available colors left for rule %s", rule.name)
+                return created
+            if _update_role(role.id, color=color_value):
+                DiscordRoleColorAssignment.objects.create(
+                    rule=rule,
+                    role_id=role.id,
+                    role_name=role.name,
+                    color=to_hex(color_value),
+                )
+                assigned_role_ids.add(role.id)
+                used_colors.add(color_value)
+                available.remove(color_value)
+                created += 1
+
+    for assignment in existing_assignments:
+        role = roles_by_id.get(assignment.role_id)
+        if role and assignment.role_name != role.name:
+            DiscordRoleColorAssignment.objects.filter(id=assignment.id).update(
+                role_name=role.name
+            )
+
+    return created
+
+
+@shared_task
+def rotate_random_keys_and_reorder_roles() -> int:
+    """Rotate random keys, sync role names, and reorder roles at the bottom."""
+    configs = list(
+        DiscordRoleObfuscation.objects.select_related("group").filter(
+            use_random_key=True
+        )
+    )
+    if not configs:
+        return 0
+
+    rename_targets = [config for config in configs if config.random_key_rotate_name]
+    for config in rename_targets:
+        config.random_key = generate_random_key(16)
+        config.save(update_fields=["random_key", "updated_at"])
+
+    updated = 0
+    for config in rename_targets:
+        if sync_group_role(config.group_id):
+            updated += 1
+
+    roleset = fetch_roleset(use_cache=False)
+    role_ids = []
+    for config in configs:
+        if not config.random_key_rotate_position:
+            continue
+        desired_name = role_name_for_group(config.group, config)
+        role = roleset.role_by_name(desired_name)
+        if not role and config.role_id:
+            role = _find_role_by_id(roleset, config.role_id)
+        if role:
+            role_ids.append(role.id)
+
+    unique_role_ids = list(dict.fromkeys(role_ids))
+    _reorder_roles_bottom(roleset, unique_role_ids)
+    return updated
