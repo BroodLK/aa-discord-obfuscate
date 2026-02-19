@@ -3,6 +3,7 @@
 # Standard Library
 import logging
 import random
+import time
 from fnmatch import fnmatchcase
 
 # Third Party
@@ -55,6 +56,9 @@ def _update_role(role_id: int, name: str | None = None, color: int | None = None
             default_bot_client,
             DISCORD_GUILD_ID,
         )
+        from allianceauth.services.modules.discord.discord_client.exceptions import (
+            DiscordRateLimitExhausted,
+        )
 
         route = f"guilds/{DISCORD_GUILD_ID}/roles/{role_id}"
         data = {}
@@ -64,7 +68,13 @@ def _update_role(role_id: int, name: str | None = None, color: int | None = None
             data["color"] = color
         if not data:
             return True
-        default_bot_client._api_request(method="patch", route=route, data=data)
+        _api_request_with_retry(
+            default_bot_client,
+            DiscordRateLimitExhausted,
+            method="patch",
+            route=route,
+            data=data,
+        )
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
         logger.info("Updated Discord role %s", role_id)
         return True
@@ -86,6 +96,9 @@ def _reorder_roles_bottom(role_ids: list[int]) -> bool:
             default_bot_client,
             DISCORD_GUILD_ID,
         )
+        from allianceauth.services.modules.discord.discord_client.exceptions import (
+            DiscordRateLimitExhausted,
+        )
 
         shuffled = list(role_ids)
         random.SystemRandom().shuffle(shuffled)
@@ -94,13 +107,62 @@ def _reorder_roles_bottom(role_ids: list[int]) -> bool:
             for index, role_id in enumerate(shuffled)
         ]
         route = f"guilds/{DISCORD_GUILD_ID}/roles"
-        default_bot_client._api_request(method="patch", route=route, data=payload)
+        _api_request_with_retry(
+            default_bot_client,
+            DiscordRateLimitExhausted,
+            method="patch",
+            route=route,
+            data=payload,
+        )
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
         logger.info("Reordered %s roles to the bottom", len(shuffled))
         return True
     except Exception:
         logger.exception("Failed to reorder roles")
         return False
+
+
+def _api_request_with_retry(
+    client,
+    rate_limit_exc,
+    method: str,
+    route: str,
+    data: dict | list,
+    max_attempts: int = 3,
+) -> None:
+    for attempt in range(1, max_attempts + 1):
+        try:
+            client._api_request(method=method, route=route, data=data)
+            return
+        except rate_limit_exc as exc:
+            if attempt >= max_attempts:
+                raise
+            delay = _rate_limit_delay(exc)
+            logger.warning(
+                "Rate limit hit; retrying in %.2fs (attempt %s/%s)",
+                delay,
+                attempt,
+                max_attempts,
+            )
+            time.sleep(delay)
+
+
+def _rate_limit_delay(exc) -> float:
+    resets_in = getattr(exc, "resets_in", None)
+    if resets_in is None and exc.args:
+        try:
+            resets_in = float(exc.args[0])
+        except (TypeError, ValueError):
+            resets_in = None
+    if resets_in is None:
+        return 5.0
+    try:
+        delay = float(resets_in)
+    except (TypeError, ValueError):
+        return 5.0
+    if delay > 60:
+        delay = delay / 1000.0
+    return max(delay + 0.25, 0.5)
 
 
 @shared_task
