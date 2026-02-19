@@ -9,7 +9,11 @@ from django import forms
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
 from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
-from discord_obfuscate.obfuscation import generate_random_key, role_name_for_group
+from discord_obfuscate.obfuscation import (
+    generate_random_key,
+    role_name_for_group,
+    role_name_for_name,
+)
 
 DIVIDER_CHOICES = [(char, char) for char in ALLOWED_DIVIDERS]
 PLACEHOLDER_PATTERN = re.compile(r"\{hash8\}|\{hash12\}|\{hash16\}|\{prefix\}")
@@ -46,6 +50,7 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         model = DiscordRoleObfuscation
         fields = [
             "group",
+            "state_name",
             "opt_out",
             "obfuscation_type",
             "obfuscation_format",
@@ -66,11 +71,17 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "group" in self.fields:
+            self.fields["group"].required = False
         if self.instance and self.instance.pk:
             self.fields["divider_characters"].initial = self.instance.get_dividers()
-            self.fields["preview"].initial = role_name_for_group(
-                self.instance.group, self.instance
-            )
+            subject_name = self.instance.subject_name
+            if subject_name:
+                self.fields["preview"].initial = role_name_for_group(
+                    self.instance.group, self.instance
+                ) if self.instance.group else role_name_for_name(
+                    subject_name, self.instance
+                )
         if "random_key" in self.fields:
             self.fields["random_key"].widget.attrs["readonly"] = "readonly"
 
@@ -135,6 +146,14 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        group = cleaned.get("group")
+        state_name = (cleaned.get("state_name") or "").strip()
+        cleaned["state_name"] = state_name
+        if group and state_name:
+            self.add_error("state_name", "Choose either a group or a state, not both.")
+            self.add_error("group", "Choose either a group or a state, not both.")
+        if not group and not state_name:
+            self.add_error("state_name", "A state or a group is required.")
         opt_out = cleaned.get("opt_out")
         if opt_out:
             cleaned["custom_name"] = ""

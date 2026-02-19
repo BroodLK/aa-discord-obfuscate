@@ -21,6 +21,7 @@
   function collectFormData() {
     var formData = new FormData();
     var group = document.getElementById("id_group");
+    var stateName = document.getElementById("id_state_name");
     var optOut = document.getElementById("id_opt_out");
     var customName = document.getElementById("id_custom_name");
     var useRandomKey = document.getElementById("id_use_random_key");
@@ -35,6 +36,9 @@
 
     if (group) {
       formData.append("group", group.value || "");
+    }
+    if (stateName) {
+      formData.append("state_name", stateName.value || "");
     }
     if (optOut && optOut.checked) {
       formData.append("opt_out", "1");

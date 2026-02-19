@@ -22,7 +22,7 @@ from discord_obfuscate.config import (
 from discord_obfuscate.obfuscation import (
     fetch_roleset,
     generate_random_key,
-    role_name_for_group,
+    role_name_for_name,
 )
 from discord_obfuscate.role_colors import (
     available_colors,
@@ -177,12 +177,33 @@ def sync_group_role(group_id: int) -> bool:
     config, _ = DiscordRoleObfuscation.objects.get_or_create(
         group=group, defaults={"obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD}
     )
+    return _sync_config(config)
+
+
+@shared_task
+def sync_role_config(config_id: int) -> bool:
+    """Sync role name for a single config (group or state)."""
+    try:
+        config = DiscordRoleObfuscation.objects.select_related("group").get(
+            pk=config_id
+        )
+    except DiscordRoleObfuscation.DoesNotExist:
+        logger.warning("Role config with id %s no longer exists", config_id)
+        return False
+    return _sync_config(config)
+
+
+def _sync_config(config: DiscordRoleObfuscation) -> bool:
+    subject_name = config.subject_name
+    if not subject_name:
+        logger.info("Skipping config %s because it has no subject name", config.pk)
+        return False
     if config.use_random_key and not config.random_key:
         config.random_key = generate_random_key(16)
         config.save(update_fields=["random_key", "updated_at"])
     roleset = fetch_roleset(use_cache=False)
-    desired_name = role_name_for_group(group, config)
-    logger.debug("Sync role for group %s -> %s", group.name, desired_name)
+    desired_name = role_name_for_name(subject_name, config)
+    logger.debug("Sync role for %s -> %s", subject_name, desired_name)
     color_value = None
     if config and config.role_color:
         value = config.role_color.strip()
@@ -199,7 +220,7 @@ def sync_group_role(group_id: int) -> bool:
         config.role_id = desired_role.id
         config.last_obfuscated_name = desired_name
         config.save(update_fields=["role_id", "last_obfuscated_name", "updated_at"])
-        logger.info("Role already matches desired name for group %s", group.name)
+        logger.info("Role already matches desired name for %s", subject_name)
         if color_value is None:
             return True
         return _rename_role(desired_role.id, desired_name, color=color_value)
@@ -212,17 +233,17 @@ def sync_group_role(group_id: int) -> bool:
         role_to_rename = roleset.role_by_name(config.last_obfuscated_name)
 
     if not role_to_rename:
-        role_to_rename = roleset.role_by_name(group.name)
+        role_to_rename = roleset.role_by_name(subject_name)
 
     if not role_to_rename:
-        logger.info("No matching role found for group %s", group.name)
+        logger.info("No matching role found for %s", subject_name)
         return False
 
     if role_to_rename.name == desired_name:
         config.role_id = role_to_rename.id
         config.last_obfuscated_name = desired_name
         config.save(update_fields=["role_id", "last_obfuscated_name", "updated_at"])
-        logger.info("Role name already set for group %s", group.name)
+        logger.info("Role name already set for %s", subject_name)
         if color_value is None:
             return True
         return _rename_role(role_to_rename.id, desired_name, color=color_value)
@@ -239,13 +260,15 @@ def sync_group_role(group_id: int) -> bool:
 @shared_task
 def sync_all_roles() -> int:
     """Sync role names for all groups with configs."""
-    group_ids = list(
-        DiscordRoleObfuscation.objects.values_list("group_id", flat=True)
-    )
-    if not group_ids:
-        group_ids = list(Group.objects.values_list("id", flat=True))
-
     count = 0
+    configs = list(DiscordRoleObfuscation.objects.select_related("group"))
+    if configs:
+        for config in configs:
+            if _sync_config(config):
+                count += 1
+        return count
+
+    group_ids = list(Group.objects.values_list("id", flat=True))
     for group_id in group_ids:
         if sync_group_role(group_id):
             count += 1
@@ -367,7 +390,7 @@ def rotate_random_keys_and_reorder_roles() -> int:
 
     updated = 0
     for config in rename_targets:
-        if sync_group_role(config.group_id):
+        if _sync_config(config):
             updated += 1
 
     roleset = fetch_roleset(use_cache=False)
@@ -375,7 +398,10 @@ def rotate_random_keys_and_reorder_roles() -> int:
     for config in configs:
         if not config.random_key_rotate_position:
             continue
-        desired_name = role_name_for_group(config.group, config)
+        subject_name = config.subject_name
+        if not subject_name:
+            continue
+        desired_name = role_name_for_name(subject_name, config)
         role = roleset.role_by_name(desired_name)
         if not role and config.role_id:
             role = _find_role_by_id(roleset, config.role_id)

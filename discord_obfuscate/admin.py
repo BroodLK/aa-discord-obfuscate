@@ -25,9 +25,9 @@ from discord_obfuscate.models import (
 from discord_obfuscate.obfuscation import (
     fetch_roleset,
     generate_random_key,
-    role_name_for_group,
+    role_name_for_name,
 )
-from discord_obfuscate.tasks import sync_all_roles, sync_group_role
+from discord_obfuscate.tasks import sync_all_roles, sync_role_config
 
 # Register your models here.
 
@@ -36,7 +36,7 @@ from discord_obfuscate.tasks import sync_all_roles, sync_group_role
 class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
     form = DiscordRoleObfuscationForm
     list_display = (
-        "group",
+        "subject",
         "role_exists",
         "opt_out",
         "use_random_key",
@@ -46,11 +46,12 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "custom_name",
         "last_obfuscated_name",
     )
-    search_fields = ("group__name", "custom_name")
+    search_fields = ("group__name", "state_name", "custom_name")
     list_filter = ("opt_out", "obfuscation_type")
     actions = ["discover_roles", "sync_selected_roles", "sync_all_roles_action"]
     fields = (
         "group",
+        "state_name",
         "opt_out",
         "custom_name",
         "use_random_key",
@@ -75,10 +76,13 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
 
     def role_exists(self, obj):
         roleset = getattr(self, "_roleset", None) or fetch_roleset(use_cache=True)
-        desired = role_name_for_group(obj.group, obj)
+        subject_name = obj.subject_name
+        if not subject_name:
+            return False
+        desired = role_name_for_name(subject_name, obj)
         if roleset.role_by_name(desired):
             return True
-        if roleset.role_by_name(obj.group.name):
+        if roleset.role_by_name(subject_name):
             return True
         if obj.role_id:
             for role in roleset:
@@ -94,11 +98,16 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         roleset = fetch_roleset(use_cache=True)
         role_names = {role.name for role in roleset}
         qs = Group.objects.filter(name__in=role_names)
-        if obj:
+        if obj and obj.group_id:
             qs = (qs | Group.objects.filter(pk=obj.group_id)).distinct()
         if "group" in form.base_fields:
             form.base_fields["group"].queryset = qs
+            form.base_fields["group"].required = False
         return form
+
+    @admin.display(description="Group/State")
+    def subject(self, obj):
+        return obj.subject_name
 
     @admin.action(description="Discover groups from Discord roles")
     def discover_roles(self, request, queryset):
@@ -119,9 +128,9 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
     def sync_selected_roles(self, request, queryset):
         count = 0
         for config in queryset:
-            sync_group_role.delay(config.group_id)
+            sync_role_config.delay(config.id)
             count += 1
-        messages.success(request, f"Queued sync for {count} groups.")
+        messages.success(request, f"Queued sync for {count} entries.")
 
     @admin.action(description="Sync all roles now")
     def sync_all_roles_action(self, request, queryset):
@@ -133,7 +142,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         if not sync_on_save_enabled():
             return
         if form and form.has_changed():
-            sync_group_role.delay(obj.group_id)
+            sync_role_config.delay(obj.id)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -151,6 +160,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             return JsonResponse({"error": "POST required"}, status=405)
 
         group_id = request.POST.get("group")
+        state_name = (request.POST.get("state_name") or "").strip()
         group_name = ""
         if group_id:
             try:
@@ -158,7 +168,8 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             except Group.DoesNotExist:
                 group_name = ""
 
-        if not group_name:
+        subject_name = group_name or state_name
+        if not subject_name:
             return JsonResponse({"preview": ""})
 
         custom_name = (request.POST.get("custom_name") or "").strip()
@@ -176,9 +187,9 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         min_chars = int(request.POST.get("min_chars_before_divider") or 0)
         dividers = request.POST.getlist("divider_characters")
 
-        temp_group = Group(id=group_id, name=group_name)
         temp_config = DiscordRoleObfuscation(
-            group=temp_group,
+            group=Group(id=group_id, name=group_name) if group_name else None,
+            state_name=state_name,
             opt_out=opt_out,
             obfuscation_type=obfuscation_type,
             obfuscation_format=obfuscation_format,
@@ -190,7 +201,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             random_key_rotate_position=rotate_position if use_random_key else False,
         )
         temp_config.set_dividers(dividers)
-        preview = role_name_for_group(temp_group, temp_config)
+        preview = role_name_for_name(subject_name, temp_config)
 
         return JsonResponse({"preview": preview})
 

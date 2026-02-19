@@ -32,7 +32,7 @@ ______________________________________________________________________
 
 ## Features<a name="features"></a>
 
-- Obfuscates Discord role names for Alliance Auth groups using HMAC hashes.
+- Obfuscates Discord role names for Alliance Auth groups and states using HMAC hashes.
 - Per-group controls in Django admin: opt out, custom name override, method, format, dividers, and role color.
 - Optional per-group role color applied during sync.
 - Optional per-group random key mode with periodic rotation and role shuffling.
@@ -124,6 +124,9 @@ These options are configured per group in Django admin:
 - Choose the hashing method (SHA256/BLAKE2s, hex/base32).
 - Customize the output format and dividers.
 - Sync role names immediately for selected groups or all groups.
+
+States are managed with the same admin model by leaving the group blank and
+setting the state name.
 
 ## How It Works<a name="how-it-works"></a>
 

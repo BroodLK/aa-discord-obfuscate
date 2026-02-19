@@ -137,13 +137,13 @@ def obfuscate_name(
     return value[:ROLE_NAME_MAX_LEN]
 
 
-def role_name_for_group(
-    group: Group,
+def role_name_for_name(
+    name: str,
     config: Optional[DiscordRoleObfuscation],
 ) -> str:
-    """Determine the desired role name for a group based on config."""
+    """Determine the desired role name for a subject name based on config."""
     if config and config.opt_out:
-        return group.name
+        return name
     if config and config.custom_name:
         dividers = config.get_dividers()
         return _sanitize_output(str(config.custom_name), dividers)[:ROLE_NAME_MAX_LEN]
@@ -151,7 +151,7 @@ def role_name_for_group(
     format_str = config.obfuscation_format if config else DISCORD_OBFUSCATE_FORMAT
     dividers = config.get_dividers() if config else []
     min_chars = config.min_chars_before_divider if config else 0
-    input_name = group.name
+    input_name = name
     if config and config.use_random_key and config.random_key:
         input_name = config.random_key
     return obfuscate_name(
@@ -163,6 +163,14 @@ def role_name_for_group(
         dividers,
         min_chars,
     )
+
+
+def role_name_for_group(
+    group: Group,
+    config: Optional[DiscordRoleObfuscation],
+) -> str:
+    """Determine the desired role name for a group based on config."""
+    return role_name_for_name(group.name, config)
 
 
 def fetch_roleset(use_cache: bool = True) -> RolesSet:
@@ -269,13 +277,17 @@ def obfuscated_user_group_names(
             )
 
     if state_name and DISCORD_OBFUSCATE_INCLUDE_STATES:
+        state_config = (
+            DiscordRoleObfuscation.objects.filter(state_name=state_name).first()
+        )
+        desired_state_name = role_name_for_name(state_name, state_config)
         if not DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE:
             logger.debug("Including state %s without role check", state_name)
-            role_names.append(state_name)
+            role_names.append(desired_state_name)
         else:
-            if roleset.role_by_name(state_name):
+            if roleset.role_by_name(desired_state_name):
                 logger.debug("Including state %s", state_name)
-                role_names.append(state_name)
+                role_names.append(desired_state_name)
             else:
                 logger.debug(
                     "Skipping state %s because no matching role exists in Discord",
