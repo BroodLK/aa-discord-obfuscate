@@ -112,13 +112,31 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
 
     @staticmethod
     def _load_state_choices():
+        model = None
+        candidates = []
         try:
-            model = apps.get_model("authentication", "State")
+            for candidate in apps.get_models():
+                if candidate._meta.model_name == "state":
+                    candidates.append(candidate)
         except Exception:
             return []
+        for candidate in candidates:
+            if candidate._meta.app_label == "authentication":
+                model = candidate
+                break
+        if not model and candidates:
+            model = candidates[0]
         if not model:
             return []
-        names = list(model.objects.values_list("name", flat=True))
+        field_names = {field.name for field in model._meta.fields}
+        value_field = None
+        for candidate in ("name", "state_name", "label", "slug"):
+            if candidate in field_names:
+                value_field = candidate
+                break
+        if not value_field:
+            return []
+        names = list(model.objects.values_list(value_field, flat=True))
         return [(name, name) for name in sorted(names)]
 
     def clean_divider_characters(self):
