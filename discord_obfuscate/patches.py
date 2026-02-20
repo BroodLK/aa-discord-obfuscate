@@ -4,7 +4,10 @@
 import logging
 
 # Discord Obfuscate App
-from discord_obfuscate.obfuscation import obfuscated_user_group_names
+from discord_obfuscate.obfuscation import (
+    obfuscated_names_for_role_names,
+    obfuscated_user_group_names,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,8 @@ def patch_discord_user_group_names() -> None:
 
     def _patched_user_group_names(user, state_name=None):
         try:
-            return obfuscated_user_group_names(user=user, state_name=state_name)
+            original_names = original(user, state_name=state_name)
+            return obfuscated_names_for_role_names(original_names)
         except Exception:
             logger.exception("Failed to obfuscate group names, falling back")
             return original(user, state_name=state_name)

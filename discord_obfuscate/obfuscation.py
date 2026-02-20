@@ -276,30 +276,20 @@ def obfuscated_user_group_names(
 ) -> List[str]:
     """Return obfuscated role names for a user's groups."""
     groups = list(user.groups.all())
+    return obfuscated_names_for_groups(groups)
+
+
+def obfuscated_names_for_groups(groups: Iterable[Group]) -> List[str]:
+    """Return obfuscated role names for a set of groups."""
+    groups = list(groups)
     if not DEFAULT_OBFUSCATE_ENABLED:
         return [group.name for group in groups]
 
-    roleset = fetch_roleset(use_cache=True)
-    if not roleset or not len(roleset):
-        logger.warning("Roleset cache empty; refetching from Discord API.")
-        roleset = None
-        for attempt in range(1, 4):
-            roleset = fetch_roleset(use_cache=False)
-            if roleset and len(roleset):
-                break
-            if attempt < 3:
-                logger.warning(
-                    "Roleset still empty; retrying in 5s (attempt %s/3).",
-                    attempt,
-                )
-                time.sleep(5)
-        if not roleset or not len(roleset):
-            logger.warning(
-                "Roleset unavailable; returning original group names to avoid role creation."
-            )
-            return [group.name for group in groups]
-    role_names: List[str] = []
+    roleset = _load_roleset_with_retry()
+    if roleset is None:
+        return [group.name for group in groups]
 
+    role_names: List[str] = []
     for group in groups:
         config = DiscordRoleObfuscation.objects.filter(group=group).first()
         resolution = resolve_group_role_name(group, roleset, config=config)
@@ -320,6 +310,61 @@ def obfuscated_user_group_names(
             )
 
     return role_names
+
+
+def obfuscated_names_for_role_names(role_names: Iterable[str]) -> List[str]:
+    """Obfuscate matching group names within an arbitrary list of role names."""
+    role_names = list(role_names)
+    if not role_names:
+        return []
+    if not DEFAULT_OBFUSCATE_ENABLED:
+        return role_names
+
+    groups = list(Group.objects.filter(name__in=role_names))
+    if not groups:
+        return role_names
+
+    roleset = _load_roleset_with_retry()
+    if roleset is None:
+        return role_names
+
+    name_map: Dict[str, Optional[str]] = {}
+    for group in groups:
+        config = DiscordRoleObfuscation.objects.filter(group=group).first()
+        resolution = resolve_group_role_name(group, roleset, config=config)
+        name_map[group.name] = resolution.used_name
+
+    output: List[str] = []
+    for name in role_names:
+        desired = name_map.get(name)
+        if name in name_map:
+            if desired:
+                output.append(desired)
+            continue
+        output.append(name)
+    return output
+
+
+def _load_roleset_with_retry() -> Optional[RolesSet]:
+    roleset = fetch_roleset(use_cache=True)
+    if roleset and len(roleset):
+        return roleset
+    logger.warning("Roleset cache empty; refetching from Discord API.")
+    roleset = None
+    for attempt in range(1, 4):
+        roleset = fetch_roleset(use_cache=False)
+        if roleset and len(roleset):
+            return roleset
+        if attempt < 3:
+            logger.warning(
+                "Roleset still empty; retrying in 5s (attempt %s/3).",
+                attempt,
+            )
+            time.sleep(5)
+    logger.warning(
+        "Roleset unavailable; returning original group names to avoid role creation."
+    )
+    return None
 
 
 def get_group_configs(groups: Iterable[Group]) -> Dict[int, DiscordRoleObfuscation]:
