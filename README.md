@@ -174,7 +174,8 @@ When a sync runs, the app:
 
 > [!NOTE]
 > If no matching role exists, the Discord service can create it using the desired
-> obfuscated name.
+> obfuscated name. If the original (non-obfuscated) role already exists, the app
+> keeps that role until a sync renames it, to avoid duplicates.
 
 ### Random Key Rotation<a name="random-key-rotation"></a>
 

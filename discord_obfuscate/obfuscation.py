@@ -235,7 +235,7 @@ def resolve_group_role_name(
         )
 
     original_role = roleset.role_by_name(group.name)
-    if original_role and DEFAULT_REQUIRE_EXISTING_ROLE:
+    if original_role:
         if desired != group.name:
             logger.debug(
                 "Desired role %s missing; using original for group %s",
