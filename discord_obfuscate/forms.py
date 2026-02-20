@@ -210,6 +210,7 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
             "default_divider_characters",
             "default_min_chars_before_divider",
             "random_key_rotation_enabled",
+            "random_key_reposition_enabled",
             "role_color_rule_sync_enabled",
             "periodic_sync_enabled",
         ]

@@ -170,6 +170,10 @@ class DiscordObfuscateConfig(SingletonModel):
         default=False,
         help_text="Enable periodic rotation of random obfuscation keys.",
     )
+    random_key_reposition_enabled = models.BooleanField(
+        default=True,
+        help_text="Enable automatic role repositioning during random key rotation.",
+    )
     role_color_rule_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic sync for role color rules.",

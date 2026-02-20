@@ -4,12 +4,13 @@
 from django.apps import apps
 
 # Discord Obfuscate App
-from discord_obfuscate.app_settings import (
-    DISCORD_OBFUSCATE_DEFAULT_METHOD,
-    DISCORD_OBFUSCATE_PERIODIC_SYNC_ENABLED,
-    DISCORD_OBFUSCATE_SYNC_ON_SAVE,
+from discord_obfuscate.constants import (
+    ALLOWED_DIVIDERS,
+    DEFAULT_OBFUSCATE_METHOD,
+    DEFAULT_PERIODIC_SYNC_ENABLED,
+    DEFAULT_SYNC_ON_SAVE,
+    OBFUSCATION_METHODS,
 )
-from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
 
 
 def _get_config():
@@ -28,14 +29,14 @@ def sync_on_save_enabled() -> bool:
     config = _get_config()
     if config:
         return bool(config.sync_on_save)
-    return bool(DISCORD_OBFUSCATE_SYNC_ON_SAVE)
+    return bool(DEFAULT_SYNC_ON_SAVE)
 
 
 def periodic_sync_enabled() -> bool:
     config = _get_config()
     if config:
         return bool(config.periodic_sync_enabled)
-    return bool(DISCORD_OBFUSCATE_PERIODIC_SYNC_ENABLED)
+    return bool(DEFAULT_PERIODIC_SYNC_ENABLED)
 
 
 def role_color_rule_sync_enabled() -> bool:
@@ -52,12 +53,19 @@ def random_key_rotation_enabled() -> bool:
     return False
 
 
+def random_key_reposition_enabled() -> bool:
+    config = _get_config()
+    if config:
+        return bool(config.random_key_reposition_enabled)
+    return True
+
+
 def default_obfuscation_values() -> dict:
     config = _get_config()
     if config:
         obfuscation_type = config.default_obfuscation_type
         if obfuscation_type not in OBFUSCATION_METHODS:
-            obfuscation_type = DISCORD_OBFUSCATE_DEFAULT_METHOD
+            obfuscation_type = DEFAULT_OBFUSCATE_METHOD
         dividers = [d for d in config.default_divider_characters.split(",") if d]
         dividers = [d for d in dividers if d in ALLOWED_DIVIDERS]
         return {
@@ -79,7 +87,7 @@ def default_obfuscation_values() -> dict:
         "use_random_key": False,
         "random_key_rotate_name": True,
         "random_key_rotate_position": True,
-        "obfuscation_type": DISCORD_OBFUSCATE_DEFAULT_METHOD,
+        "obfuscation_type": DEFAULT_OBFUSCATE_METHOD,
         "divider_characters": "",
         "min_chars_before_divider": 0,
     }

@@ -19,16 +19,14 @@ from django.contrib.auth.models import Group, User
 from allianceauth.services.modules.discord.discord_client.helpers import RolesSet
 
 # Discord Obfuscate App
-from discord_obfuscate.app_settings import (
-    DISCORD_OBFUSCATE_DEFAULT_METHOD,
-    DISCORD_OBFUSCATE_ENABLED,
-    DISCORD_OBFUSCATE_FORMAT,
-    DISCORD_OBFUSCATE_PREFIX,
-    DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE,
-    DISCORD_OBFUSCATE_SECRET,
-)
+from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_SECRET
 from discord_obfuscate.constants import (
     ALLOWED_DIVIDERS,
+    DEFAULT_OBFUSCATE_ENABLED,
+    DEFAULT_OBFUSCATE_FORMAT,
+    DEFAULT_OBFUSCATE_METHOD,
+    DEFAULT_OBFUSCATE_PREFIX,
+    DEFAULT_REQUIRE_EXISTING_ROLE,
     OBFUSCATION_METHODS,
     ROLE_NAME_MAX_LEN,
 )
@@ -56,9 +54,9 @@ class RoleNameResolution:
 
 
 def _method_info(method: str) -> tuple:
-    method = method or DISCORD_OBFUSCATE_DEFAULT_METHOD
+    method = method or DEFAULT_OBFUSCATE_METHOD
     if method not in OBFUSCATION_METHODS:
-        method = DISCORD_OBFUSCATE_DEFAULT_METHOD
+        method = DEFAULT_OBFUSCATE_METHOD
     _, algo, encoding = OBFUSCATION_METHODS[method]
     return algo, encoding
 
@@ -79,7 +77,7 @@ def _encode_hash(hash_bytes: bytes, encoding: str) -> str:
 
 
 def _apply_format(format_str: str, tokens: dict) -> str:
-    result = format_str or DISCORD_OBFUSCATE_FORMAT
+    result = format_str or DEFAULT_OBFUSCATE_FORMAT
     for key, value in tokens.items():
         result = result.replace(f"{{{key}}}", value)
     return result
@@ -119,7 +117,7 @@ def obfuscate_name(
     algo, encoding = _method_info(method)
     hash_str = _encode_hash(_hash_bytes(name, secret, algo), encoding)
 
-    format_str = format_str or DISCORD_OBFUSCATE_FORMAT
+    format_str = format_str or DEFAULT_OBFUSCATE_FORMAT
     prefix = prefix or ""
     if prefix and "{prefix}" not in format_str:
         format_str = "{prefix}" + format_str
@@ -147,8 +145,8 @@ def role_name_for_group(
     if config and config.custom_name:
         dividers = config.get_dividers()
         return _sanitize_output(str(config.custom_name), dividers)[:ROLE_NAME_MAX_LEN]
-    method = config.obfuscation_type if config else DISCORD_OBFUSCATE_DEFAULT_METHOD
-    format_str = config.obfuscation_format if config else DISCORD_OBFUSCATE_FORMAT
+    method = config.obfuscation_type if config else DEFAULT_OBFUSCATE_METHOD
+    format_str = config.obfuscation_format if config else DEFAULT_OBFUSCATE_FORMAT
     dividers = config.get_dividers() if config else []
     min_chars = config.min_chars_before_divider if config else 0
     input_name = group.name
@@ -158,7 +156,7 @@ def role_name_for_group(
         input_name,
         method,
         DISCORD_OBFUSCATE_SECRET,
-        DISCORD_OBFUSCATE_PREFIX,
+        DEFAULT_OBFUSCATE_PREFIX,
         format_str,
         dividers,
         min_chars,
@@ -237,7 +235,7 @@ def resolve_group_role_name(
         )
 
     original_role = roleset.role_by_name(group.name)
-    if original_role and DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE:
+    if original_role and DEFAULT_REQUIRE_EXISTING_ROLE:
         if desired != group.name:
             logger.debug(
                 "Desired role %s missing; using original for group %s",
@@ -252,7 +250,7 @@ def resolve_group_role_name(
             used_original=True,
         )
 
-    if not DISCORD_OBFUSCATE_REQUIRE_EXISTING_ROLE:
+    if not DEFAULT_REQUIRE_EXISTING_ROLE:
         return RoleNameResolution(
             group=group,
             desired_name=desired,
@@ -275,7 +273,7 @@ def obfuscated_user_group_names(
     state_name: Optional[str] = None,
 ) -> List[str]:
     """Return obfuscated role names for a user's groups."""
-    if not DISCORD_OBFUSCATE_ENABLED:
+    if not DEFAULT_OBFUSCATE_ENABLED:
         names = [group.name for group in user.groups.all()]
         return names
 

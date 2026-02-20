@@ -10,7 +10,7 @@ from django.urls import path
 from solo.admin import SingletonModelAdmin
 
 # Discord Obfuscate App
-from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
+from discord_obfuscate.constants import DEFAULT_OBFUSCATE_METHOD
 from discord_obfuscate.config import default_obfuscation_values, sync_on_save_enabled
 from discord_obfuscate.forms import (
     DiscordObfuscateConfigForm,
@@ -106,7 +106,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         role_names = {role.name for role in roleset}
         groups = Group.objects.filter(name__in=role_names)
         defaults = default_obfuscation_values()
-        defaults.setdefault("obfuscation_type", DISCORD_OBFUSCATE_DEFAULT_METHOD)
+        defaults.setdefault("obfuscation_type", DEFAULT_OBFUSCATE_METHOD)
         created = 0
         for group in groups:
             _, was_created = DiscordRoleObfuscation.objects.get_or_create(
@@ -210,6 +210,7 @@ class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
         "default_divider_characters",
         "default_min_chars_before_divider",
         "random_key_rotation_enabled",
+        "random_key_reposition_enabled",
         "role_color_rule_sync_enabled",
         "periodic_sync_enabled",
     )

@@ -38,21 +38,21 @@ class Command(BaseCommand):
         self._ensure_periodic_task(
             PeriodicTask,
             CrontabSchedule,
-            "discord_obfuscate_sync_all_roles",
+            "Obfuscate Discord: Sync all roles",
             "discord_obfuscate.tasks.periodic_sync_all_roles",
             hourly,
         )
         self._ensure_periodic_task(
             PeriodicTask,
             CrontabSchedule,
-            "discord_obfuscate_rotate_random_keys",
+            "Obfuscate Discord: Rotate random keys",
             "discord_obfuscate.tasks.periodic_rotate_random_keys",
             every_three_days,
         )
         self._ensure_periodic_task(
             PeriodicTask,
             CrontabSchedule,
-            "discord_obfuscate_sync_role_colors",
+            "Obfuscate Discord: Sync role colors",
             "discord_obfuscate.tasks.periodic_sync_role_colors",
             hourly,
         )

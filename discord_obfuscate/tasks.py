@@ -13,11 +13,12 @@ from django.contrib.auth.models import Group
 
 # Alliance Auth
 # Discord Obfuscate App
-from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_DEFAULT_METHOD
+from discord_obfuscate.constants import DEFAULT_OBFUSCATE_METHOD
 from discord_obfuscate.config import (
     default_obfuscation_values,
     periodic_sync_enabled,
     random_key_rotation_enabled,
+    random_key_reposition_enabled,
     role_color_rule_sync_enabled,
 )
 from discord_obfuscate.obfuscation import (
@@ -176,7 +177,7 @@ def sync_group_role(group_id: int) -> bool:
         return False
 
     defaults = default_obfuscation_values()
-    defaults.setdefault("obfuscation_type", DISCORD_OBFUSCATE_DEFAULT_METHOD)
+    defaults.setdefault("obfuscation_type", DEFAULT_OBFUSCATE_METHOD)
     config, _ = DiscordRoleObfuscation.objects.get_or_create(group=group, defaults=defaults)
     return _sync_config(config)
 
@@ -392,15 +393,16 @@ def rotate_random_keys_and_reorder_roles() -> int:
         if _sync_config(config, roleset=roleset):
             updated += 1
 
-    role_ids = []
-    for config in configs:
-        if not config.random_key_rotate_position:
-            continue
-        if config.role_id:
-            role_ids.append(config.role_id)
+    if random_key_reposition_enabled():
+        role_ids = []
+        for config in configs:
+            if not config.random_key_rotate_position:
+                continue
+            if config.role_id:
+                role_ids.append(config.role_id)
 
-    unique_role_ids = list(dict.fromkeys(role_ids))
-    _reorder_roles_bottom(unique_role_ids)
+        unique_role_ids = list(dict.fromkeys(role_ids))
+        _reorder_roles_bottom(unique_role_ids)
     return updated
 
 
