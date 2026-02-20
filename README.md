@@ -173,7 +173,8 @@ When a sync runs, the app:
 - Applies the per-group role color if set.
 
 > [!NOTE]
-> If no matching role exists, the group is skipped (roles are never auto-created).
+> If no matching role exists, the Discord service can create it using the desired
+> obfuscated name.
 
 ### Random Key Rotation<a name="random-key-rotation"></a>
 
