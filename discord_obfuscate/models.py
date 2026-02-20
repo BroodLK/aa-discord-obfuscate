@@ -250,6 +250,13 @@ class DiscordRoleColorAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name="assignments",
     )
+    obfuscation = models.ForeignKey(
+        DiscordRoleObfuscation,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="color_assignments",
+    )
     role_id = models.BigIntegerField()
     role_name = models.CharField(max_length=100)
     color = models.CharField(max_length=7)

@@ -294,11 +294,15 @@ def sync_role_color_rules() -> int:
     if not rules:
         return 0
 
-    pinned_role_ids = set(
-        DiscordRoleObfuscation.objects.exclude(role_color="")
-        .exclude(role_id=None)
-        .values_list("role_id", flat=True)
+    configs_with_roles = list(
+        DiscordRoleObfuscation.objects.exclude(role_id=None).only("id", "role_id", "role_color")
     )
+    pinned_role_ids = {
+        cfg.role_id for cfg in configs_with_roles if cfg.role_color
+    }
+    obfuscation_by_role_id = {
+        cfg.role_id: cfg for cfg in configs_with_roles if cfg.role_id
+    }
 
     roleset = fetch_roleset(use_cache=False)
     roles_by_id = {role.id: role for role in roleset}
@@ -354,6 +358,7 @@ def sync_role_color_rules() -> int:
             if _update_role(role.id, color=color_value):
                 DiscordRoleColorAssignment.objects.create(
                     rule=rule,
+                    obfuscation=obfuscation_by_role_id.get(role.id),
                     role_id=role.id,
                     role_name=role.name,
                     color=to_hex(color_value),
