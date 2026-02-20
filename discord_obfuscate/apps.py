@@ -16,5 +16,6 @@ class DiscordObfuscateConfig(AppConfig):
 
     def ready(self):
         from discord_obfuscate.patches import patch_discord_user_group_names
+        from discord_obfuscate import signals  # noqa: F401
 
         patch_discord_user_group_names()
