@@ -129,6 +129,11 @@ for newly created per-group entries:
   formatting defaults.
 - `Random key rotation enabled` periodically changes the random key used for random key input, and therfore changes the name of the obfuscated roles
 - `Random key reposition enabled` periodically changes where the role is positioned in the list of discord roles for another layer of obfuscation
+- `Random key reposition min position` sets the lowest role position used during repositioning
+  (1 is just above `@everyone`, since position 0 is always `@everyone`) and is clamped
+  to keep all repositioned roles below position 250.
+- `Require existing role` controls whether the Discord service is allowed to create
+  a missing role when neither the original nor obfuscated role exists.
 - `Role color rule sync enabled` and `Periodic sync enabled` gate their
   respective tasks.
 
@@ -189,6 +194,8 @@ random-key rotation task is enabled in Discord Obfuscate config, it will:
 
 Each random-key entry can opt out of renaming or repositioning via the two
 checkboxes shown when `Use random key` is enabled.
+You can set the lowest role position used during repositioning via
+`Random key reposition min position` in `Discord Obfuscate Config`.
 
 ### Role Coloring<a name="role-coloring"></a>
 

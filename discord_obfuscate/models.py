@@ -3,6 +3,7 @@
 # Django
 from django.db import models
 from django.contrib.auth.models import Group
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # Third Party
 from solo.models import SingletonModel
@@ -174,6 +175,14 @@ class DiscordObfuscateConfig(SingletonModel):
         default=True,
         help_text="Enable automatic role repositioning during random key rotation.",
     )
+    random_key_reposition_min_position = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(249)],
+        help_text=(
+            "Lowest position for random-key role repositioning. "
+            "1 is just above @everyone. Must leave enough space below position 250."
+        ),
+    )
     role_color_rule_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic sync for role color rules.",
@@ -181,6 +190,14 @@ class DiscordObfuscateConfig(SingletonModel):
     periodic_sync_enabled = models.BooleanField(
         default=False,
         help_text="Enable periodic full sync of roles via Celery beat.",
+    )
+    require_existing_role = models.BooleanField(
+        default=True,
+        help_text=(
+            "Only use roles that already exist in Discord. "
+            "When enabled, Alliance Auth will not be able to create new roles; "
+            "missing roles must be created manually on the Discord server."
+        ),
     )
 
     class Meta:

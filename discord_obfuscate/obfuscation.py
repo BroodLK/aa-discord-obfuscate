@@ -20,13 +20,13 @@ from allianceauth.services.modules.discord.discord_client.helpers import RolesSe
 
 # Discord Obfuscate App
 from discord_obfuscate.app_settings import DISCORD_OBFUSCATE_SECRET
+from discord_obfuscate.config import require_existing_role
 from discord_obfuscate.constants import (
     ALLOWED_DIVIDERS,
     DEFAULT_OBFUSCATE_ENABLED,
     DEFAULT_OBFUSCATE_FORMAT,
     DEFAULT_OBFUSCATE_METHOD,
     DEFAULT_OBFUSCATE_PREFIX,
-    DEFAULT_REQUIRE_EXISTING_ROLE,
     OBFUSCATION_METHODS,
     ROLE_NAME_MAX_LEN,
 )
@@ -140,6 +140,8 @@ def role_name_for_group(
     config: Optional[DiscordRoleObfuscation],
 ) -> str:
     """Determine the desired role name for a group based on config."""
+    if config is None:
+        return group.name
     if config and config.opt_out:
         return group.name
     if config and config.custom_name:
@@ -250,7 +252,7 @@ def resolve_group_role_name(
             used_original=True,
         )
 
-    if not DEFAULT_REQUIRE_EXISTING_ROLE:
+    if not require_existing_role():
         return RoleNameResolution(
             group=group,
             desired_name=desired,
@@ -273,14 +275,32 @@ def obfuscated_user_group_names(
     state_name: Optional[str] = None,
 ) -> List[str]:
     """Return obfuscated role names for a user's groups."""
+    groups = list(user.groups.all())
     if not DEFAULT_OBFUSCATE_ENABLED:
-        names = [group.name for group in user.groups.all()]
-        return names
+        return [group.name for group in groups]
 
     roleset = fetch_roleset(use_cache=True)
+    if not roleset or not len(roleset):
+        logger.warning("Roleset cache empty; refetching from Discord API.")
+        roleset = None
+        for attempt in range(1, 4):
+            roleset = fetch_roleset(use_cache=False)
+            if roleset and len(roleset):
+                break
+            if attempt < 3:
+                logger.warning(
+                    "Roleset still empty; retrying in 5s (attempt %s/3).",
+                    attempt,
+                )
+                time.sleep(5)
+        if not roleset or not len(roleset):
+            logger.warning(
+                "Roleset unavailable; returning original group names to avoid role creation."
+            )
+            return [group.name for group in groups]
     role_names: List[str] = []
 
-    for group in user.groups.all():
+    for group in groups:
         config = DiscordRoleObfuscation.objects.filter(group=group).first()
         resolution = resolve_group_role_name(group, roleset, config=config)
         if resolution.used_name:

@@ -57,6 +57,7 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "random_key",
         "random_key_rotate_name",
         "random_key_rotate_position",
+        "role_color_enabled",
         "role_color",
         "obfuscation_type",
         "obfuscation_format",
@@ -200,19 +201,53 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
 @admin.register(DiscordObfuscateConfig)
 class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
     form = DiscordObfuscateConfigForm
-    fields = (
-        "sync_on_save",
-        "default_opt_out",
-        "default_use_random_key",
-        "default_random_key_rotate_name",
-        "default_random_key_rotate_position",
-        "default_obfuscation_type",
-        "default_divider_characters",
-        "default_min_chars_before_divider",
-        "random_key_rotation_enabled",
-        "random_key_reposition_enabled",
-        "role_color_rule_sync_enabled",
-        "periodic_sync_enabled",
+    fieldsets = (
+        (
+            "Sync Behavior",
+            {
+                "description": (
+                    "Controls when sync runs and whether roles must already exist in Discord."
+                ),
+                "fields": (
+                    "sync_on_save",
+                    "periodic_sync_enabled",
+                    "require_existing_role",
+                )
+            },
+        ),
+        (
+            "Defaults for New Entries",
+            {
+                "description": "Applied when new per-group configs are created.",
+                "fields": (
+                    "default_opt_out",
+                    "default_use_random_key",
+                    "default_random_key_rotate_name",
+                    "default_random_key_rotate_position",
+                    "default_obfuscation_type",
+                    "default_divider_characters",
+                    "default_min_chars_before_divider",
+                )
+            },
+        ),
+        (
+            "Random Key Rotation",
+            {
+                "description": "Controls periodic random key rotation and optional repositioning.",
+                "fields": (
+                    "random_key_rotation_enabled",
+                    "random_key_reposition_enabled",
+                    "random_key_reposition_min_position",
+                )
+            },
+        ),
+        (
+            "Role Color Rules",
+            {
+                "description": "Controls periodic color assignment for matching roles.",
+                "fields": ("role_color_rule_sync_enabled",),
+            },
+        ),
     )
 
 

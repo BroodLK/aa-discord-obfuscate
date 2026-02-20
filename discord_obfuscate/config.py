@@ -60,6 +60,20 @@ def random_key_reposition_enabled() -> bool:
     return True
 
 
+def random_key_reposition_min_position() -> int:
+    config = _get_config()
+    if config:
+        return int(config.random_key_reposition_min_position or 1)
+    return 1
+
+
+def require_existing_role() -> bool:
+    config = _get_config()
+    if config:
+        return bool(config.require_existing_role)
+    return True
+
+
 def default_obfuscation_values() -> dict:
     config = _get_config()
     if config:

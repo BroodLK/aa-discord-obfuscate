@@ -27,12 +27,14 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         choices=DIVIDER_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         label="Dividers",
+        help_text="Allowed separators for obfuscated output. Requires minimum characters per divider.",
     )
     preview = forms.CharField(
         required=False,
         disabled=True,
         label="Preview",
         widget=forms.TextInput(attrs={"readonly": "readonly"}),
+        help_text="Calculated output using the current settings.",
     )
     random_key = forms.CharField(
         required=False,
@@ -44,6 +46,12 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         required=False,
         label="Role color",
         widget=forms.TextInput(attrs={"type": "color"}),
+        help_text="Optional fixed role color in #RRGGBB format.",
+    )
+    role_color_enabled = forms.BooleanField(
+        required=False,
+        label="Apply role color",
+        help_text="Uncheck to not send a color.",
     )
 
     class Meta:
@@ -60,6 +68,7 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             "random_key",
             "random_key_rotate_name",
             "random_key_rotate_position",
+            "role_color_enabled",
             "role_color",
             "preview",
         ]
@@ -94,6 +103,7 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             self.fields["preview"].initial = role_name_for_group(
                 self.instance.group, self.instance
             )
+            self.fields["role_color_enabled"].initial = bool(self.instance.role_color)
         if "random_key" in self.fields:
             self.fields["random_key"].widget.attrs["readonly"] = "readonly"
 
@@ -171,6 +181,8 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             cleaned["random_key"] = ""
             cleaned["random_key_rotate_name"] = False
             cleaned["random_key_rotate_position"] = False
+        if not cleaned.get("role_color_enabled"):
+            cleaned["role_color"] = ""
         dividers = cleaned.get("divider_characters") or []
         min_chars = cleaned.get("min_chars_before_divider") or 0
         if dividers and min_chars < 1:
@@ -196,6 +208,7 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
         choices=DIVIDER_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         label="Default dividers",
+        help_text="Default separators for new entries. Requires minimum characters per divider.",
     )
 
     class Meta:
@@ -211,8 +224,10 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
             "default_min_chars_before_divider",
             "random_key_rotation_enabled",
             "random_key_reposition_enabled",
+            "random_key_reposition_min_position",
             "role_color_rule_sync_enabled",
             "periodic_sync_enabled",
+            "require_existing_role",
         ]
 
     def __init__(self, *args, **kwargs):

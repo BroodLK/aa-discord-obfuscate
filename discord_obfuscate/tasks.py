@@ -19,6 +19,7 @@ from discord_obfuscate.config import (
     periodic_sync_enabled,
     random_key_rotation_enabled,
     random_key_reposition_enabled,
+    random_key_reposition_min_position,
     role_color_rule_sync_enabled,
 )
 from discord_obfuscate.obfuscation import (
@@ -90,7 +91,7 @@ def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
     return _update_role(role_id, name=new_name, color=color)
 
 
-def _reorder_roles_bottom(role_ids: list[int]) -> bool:
+def _reorder_roles_bottom(role_ids: list[int], start_position: int = 1) -> bool:
     if not role_ids:
         return True
     try:
@@ -102,10 +103,11 @@ def _reorder_roles_bottom(role_ids: list[int]) -> bool:
             DiscordRateLimitExhausted,
         )
 
+        start = max(1, int(start_position or 1))
         shuffled = list(role_ids)
         random.SystemRandom().shuffle(shuffled)
         payload = [
-            {"id": role_id, "position": index + 1}
+            {"id": role_id, "position": start + index}
             for index, role_id in enumerate(shuffled)
         ]
         route = f"guilds/{DISCORD_GUILD_ID}/roles"
@@ -402,7 +404,29 @@ def rotate_random_keys_and_reorder_roles() -> int:
                 role_ids.append(config.role_id)
 
         unique_role_ids = list(dict.fromkeys(role_ids))
-        _reorder_roles_bottom(unique_role_ids)
+        if unique_role_ids:
+            start_position = random_key_reposition_min_position()
+            max_position = 249
+            reserve_slots = 1  # Reserve one slot so obfuscated roles + bot role fit below max.
+            required = len(unique_role_ids) + reserve_slots
+            if start_position + required - 1 > max_position:
+                adjusted = max_position - required + 1
+                if adjusted < 1:
+                    logger.warning(
+                        "Not enough room to reposition %s roles below position 250; "
+                        "skipping reordering.",
+                        len(unique_role_ids),
+                    )
+                else:
+                    logger.warning(
+                        "Adjusted random key reposition start from %s to %s to fit %s roles.",
+                        start_position,
+                        adjusted,
+                        len(unique_role_ids),
+                    )
+                    start_position = adjusted
+            if start_position >= 1:
+                _reorder_roles_bottom(unique_role_ids, start_position)
     return updated
 
 
