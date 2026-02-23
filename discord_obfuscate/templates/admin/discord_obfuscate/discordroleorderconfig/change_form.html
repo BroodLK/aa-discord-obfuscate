@@ -1,0 +1,95 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'discord_obfuscate/role_order.css' %}">
+{% endblock %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+  <div class="role-ordering" data-enabled="{{ role_order_enabled|yesno:'1,0' }}">
+    <h2>Role Ordering</h2>
+    {% if role_order_warnings %}
+      <ul class="messagelist">
+        {% for warning in role_order_warnings %}
+          <li class="warning">{{ warning }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p class="help">
+      Drag roles to set their order. Locked roles cannot be moved and act as fixed slots.
+    </p>
+    <input type="hidden" name="role_order_data" id="id_role_order_data" value="">
+    <table class="role-order-table{% if not role_order_enabled %} is-disabled{% endif %}" id="role-order-table">
+      <thead>
+        <tr>
+          <th class="col-drag">Drag</th>
+          <th class="col-role">Role</th>
+          <th class="col-id">Role ID</th>
+          <th class="col-color">Color</th>
+          <th class="col-lock">Lock</th>
+          <th class="col-reason">Locked Because</th>
+          <th class="col-pos">Position</th>
+        </tr>
+      </thead>
+      <tbody id="role-order-body">
+        {% for row in role_order_rows %}
+          {% if row.system_locked or row.user_locked %}
+            {% with locked=1 %}
+          {% else %}
+            {% with locked=0 %}
+          {% endif %}
+          <tr
+            data-role-id="{{ row.role_id }}"
+            data-locked="{{ locked }}"
+            data-system-locked="{{ row.system_locked|yesno:'1,0' }}"
+            data-user-locked="{{ row.user_locked|yesno:'1,0' }}"
+            data-draggable="{% if role_order_enabled %}{{ locked|yesno:'0,1' }}{% else %}0{% endif %}"
+          >
+            <td class="col-drag">
+              <span class="drag-handle" title="Drag to reorder">|||</span>
+            </td>
+            <td class="col-role">
+              <span class="role-name">{{ row.name }}</span>
+            </td>
+            <td class="col-id">
+              <code>{{ row.role_id }}</code>
+            </td>
+            <td class="col-color">
+              <span class="color-swatch" style="background-color: {{ row.color|default:'#e0e0e0' }};"></span>
+              <span class="color-text">{{ row.color }}</span>
+            </td>
+            <td class="col-lock">
+              <input
+                type="checkbox"
+                class="role-lock"
+                {% if row.user_locked or row.system_locked %}checked{% endif %}
+                {% if row.system_locked or not role_order_enabled %}disabled{% endif %}
+                aria-label="Lock role position"
+              >
+            </td>
+            <td class="col-reason">
+              <span class="lock-reasons">
+                {% if row.lock_reasons %}
+                  {{ row.lock_reasons }}
+                {% else %}
+                  --
+                {% endif %}
+              </span>
+            </td>
+            <td class="col-pos">
+              {{ row.position }}
+            </td>
+          </tr>
+          {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+
+{% block footer %}
+  {{ block.super }}
+  <script src="{% static 'discord_obfuscate/role_order_admin.js' %}"></script>
+{% endblock %}
