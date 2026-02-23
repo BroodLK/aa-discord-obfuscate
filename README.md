@@ -40,7 +40,8 @@ ______________________________________________________________________
 - Obfuscates Discord role names for Alliance Auth groups using HMAC hashes.
 - Per-group controls in Django admin: opt out, custom name override, method, format, dividers, and role color.
 - Optional per-group role color applied during sync.
-- Optional per-group random key mode with periodic rotation and role shuffling.
+- Optional per-group random key mode with periodic rotation.
+- Manual role ordering via a drag-and-drop admin table.
 - Pattern-based role color rules for new roles.
 - Preview and bulk sync actions in Django admin.
 
@@ -127,11 +128,8 @@ for newly created per-group entries:
 - `Default obfuscation type` chooses the hashing method for new entries.
 - `Default divider characters` and `Default min chars before divider` set output
   formatting defaults.
-- `Random key rotation enabled` periodically changes the random key used for random key input, and therfore changes the name of the obfuscated roles
-- `Random key reposition enabled` periodically changes where the role is positioned in the list of discord roles for another layer of obfuscation
-- `Random key reposition min position` sets the lowest role position used during repositioning
-  (1 is just above `@everyone`, since position 0 is always `@everyone`) and is clamped
-  to keep all repositioned roles below position 250.
+- `Random key rotation enabled` periodically changes the random key used for random key input, and therefore changes the name of the obfuscated roles.
+- Role ordering is configured in `Discord Role Order Config` (separate admin menu).
 - `Require existing role` controls whether the Discord service is allowed to create
   a missing role when neither the original nor obfuscated role exists.
 - `Role color rule sync enabled` and `Periodic sync enabled` gate their
@@ -190,12 +188,12 @@ random-key rotation task is enabled in Discord Obfuscate config, it will:
 
 - Rotate keys for entries with `Use random key` enabled.
 - Rename those roles to the newly obfuscated names.
-- Shuffle those roles into the bottom positions in a random order. (if enabled)
+- Apply the manual role order configuration if it is enabled.
 
 Each random-key entry can opt out of renaming or repositioning via the two
-checkboxes shown when `Use random key` is enabled.
-You can set the lowest role position used during repositioning via
-`Random key reposition min position` in `Discord Obfuscate Config`.
+checkboxes shown when `Use random key` is enabled. Manual ordering is configured
+in `Discord Role Order Config`, which also controls whether unlocked roles are
+shuffled or kept in the saved order when the rotation task runs.
 
 ### Role Coloring<a name="role-coloring"></a>
 

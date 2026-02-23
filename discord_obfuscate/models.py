@@ -207,6 +207,58 @@ class DiscordObfuscateConfig(SingletonModel):
         return "Discord Obfuscate config"
 
 
+class DiscordRoleOrderConfig(SingletonModel):
+    """Manual role ordering settings."""
+
+    ORDER_MODES = (
+        ("desired", "Reorder to desired configuration at next reorder task"),
+        ("shuffle", "Randomly reorganize unlocked roles"),
+    )
+
+    enabled = models.BooleanField(
+        default=False,
+        help_text="Enable manual role ordering during the rotation task.",
+    )
+    bot_role_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Discord role ID for the bot's highest role (locks roles above it).",
+    )
+    reorder_mode = models.CharField(
+        max_length=16,
+        choices=ORDER_MODES,
+        default="desired",
+        help_text="Controls how unlocked roles are positioned during the reorder task.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Discord Role Order Config"
+
+    def __str__(self):
+        return "Discord Role Order config"
+
+
+class DiscordRoleOrder(models.Model):
+    """Stored manual ordering for Discord roles."""
+
+    role_id = models.BigIntegerField(unique=True)
+    role_name = models.CharField(max_length=100, blank=True, default="")
+    role_color = models.CharField(max_length=7, blank=True, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+    locked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "role_name"]
+        verbose_name = "Discord Role Order"
+        verbose_name_plural = "Discord Role Orders"
+
+    def __str__(self):
+        return f"{self.role_name or self.role_id}"
+
+
 class DiscordRoleColorRule(models.Model):
     """Rule for assigning random colors to matching roles."""
 

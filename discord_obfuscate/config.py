@@ -25,6 +25,18 @@ def _get_config():
         return None
 
 
+def _get_role_order_config():
+    try:
+        if not apps.ready:
+            return None
+        model = apps.get_model("discord_obfuscate", "DiscordRoleOrderConfig")
+        if model is None:
+            return None
+        return model.get_solo()
+    except Exception:
+        return None
+
+
 def sync_on_save_enabled() -> bool:
     config = _get_config()
     if config:
@@ -72,6 +84,27 @@ def require_existing_role() -> bool:
     if config:
         return bool(config.require_existing_role)
     return True
+
+
+def role_ordering_enabled() -> bool:
+    config = _get_role_order_config()
+    if config:
+        return bool(config.enabled)
+    return False
+
+
+def role_order_bot_role_id() -> int | None:
+    config = _get_role_order_config()
+    if config and config.bot_role_id:
+        return int(config.bot_role_id)
+    return None
+
+
+def role_order_mode() -> str:
+    config = _get_role_order_config()
+    if config and config.reorder_mode:
+        return str(config.reorder_mode)
+    return "desired"
 
 
 def default_obfuscation_values() -> dict:

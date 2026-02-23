@@ -9,7 +9,11 @@ from django import forms
 # Discord Obfuscate App
 from discord_obfuscate.constants import ALLOWED_DIVIDERS, OBFUSCATION_METHODS
 from discord_obfuscate.config import default_obfuscation_values
-from discord_obfuscate.models import DiscordObfuscateConfig, DiscordRoleObfuscation
+from discord_obfuscate.models import (
+    DiscordObfuscateConfig,
+    DiscordRoleObfuscation,
+    DiscordRoleOrderConfig,
+)
 from discord_obfuscate.obfuscation import (
     generate_random_key,
     role_name_for_group,
@@ -223,8 +227,6 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
             "default_divider_characters",
             "default_min_chars_before_divider",
             "random_key_rotation_enabled",
-            "random_key_reposition_enabled",
-            "random_key_reposition_min_position",
             "role_color_rule_sync_enabled",
             "periodic_sync_enabled",
             "require_existing_role",
@@ -253,3 +255,41 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class DiscordRoleOrderConfigForm(forms.ModelForm):
+    """Form for role ordering settings."""
+
+    bot_role_id = forms.ChoiceField(
+        required=False,
+        label="Bot role",
+        help_text="Highest role of the bot; roles above it are locked.",
+    )
+    reorder_mode = forms.ChoiceField(
+        required=True,
+        label="Reorder behavior",
+        widget=forms.RadioSelect,
+        choices=DiscordRoleOrderConfig.ORDER_MODES,
+    )
+
+    class Meta:
+        model = DiscordRoleOrderConfig
+        fields = [
+            "enabled",
+            "bot_role_id",
+            "reorder_mode",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.bot_role_id:
+            self.initial["bot_role_id"] = str(self.instance.bot_role_id)
+
+    def clean_bot_role_id(self):
+        value = (self.cleaned_data.get("bot_role_id") or "").strip()
+        if not value:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            raise forms.ValidationError("Bot role must be a valid role ID.")

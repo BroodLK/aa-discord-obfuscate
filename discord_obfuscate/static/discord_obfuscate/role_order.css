@@ -1,0 +1,80 @@
+.role-ordering {
+  margin-top: 20px;
+}
+
+.role-order-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.role-order-table th,
+.role-order-table td {
+  padding: 8px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.role-order-table thead th {
+  background: #f8f8f8;
+  text-align: left;
+  font-weight: 600;
+}
+
+.role-order-table tbody tr[data-locked="1"] {
+  opacity: 0.65;
+}
+
+.role-order-table.is-disabled {
+  opacity: 0.7;
+}
+
+.role-order-table.is-disabled .drag-handle,
+.role-order-table.is-disabled input {
+  cursor: not-allowed;
+}
+
+.drag-handle {
+  cursor: grab;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.role-order-table tbody tr[data-system-locked="1"] .drag-handle {
+  cursor: not-allowed;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #888;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.color-text {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.col-drag {
+  width: 40px;
+}
+
+.col-id,
+.col-pos {
+  width: 110px;
+  white-space: nowrap;
+}
+
+.col-color {
+  width: 140px;
+}
+
+.col-lock {
+  width: 80px;
+}

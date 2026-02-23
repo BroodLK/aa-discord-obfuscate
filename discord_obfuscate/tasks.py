@@ -18,8 +18,9 @@ from discord_obfuscate.config import (
     default_obfuscation_values,
     periodic_sync_enabled,
     random_key_rotation_enabled,
-    random_key_reposition_enabled,
-    random_key_reposition_min_position,
+    role_ordering_enabled,
+    role_order_bot_role_id,
+    role_order_mode,
     role_color_rule_sync_enabled,
 )
 from discord_obfuscate.obfuscation import (
@@ -38,6 +39,7 @@ from discord_obfuscate.models import (
     DiscordRoleColorAssignment,
     DiscordRoleColorRule,
     DiscordRoleObfuscation,
+    DiscordRoleOrder,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,8 +93,8 @@ def _rename_role(role_id: int, new_name: str, color: int | None = None) -> bool:
     return _update_role(role_id, name=new_name, color=color)
 
 
-def _reorder_roles_bottom(role_ids: list[int], start_position: int = 1) -> bool:
-    if not role_ids:
+def _reorder_roles_payload(payload: list[dict]) -> bool:
+    if not payload:
         return True
     try:
         from allianceauth.services.modules.discord.core import (
@@ -103,13 +105,6 @@ def _reorder_roles_bottom(role_ids: list[int], start_position: int = 1) -> bool:
             DiscordRateLimitExhausted,
         )
 
-        start = max(1, int(start_position or 1))
-        shuffled = list(role_ids)
-        random.SystemRandom().shuffle(shuffled)
-        payload = [
-            {"id": role_id, "position": start + index}
-            for index, role_id in enumerate(shuffled)
-        ]
         route = f"guilds/{DISCORD_GUILD_ID}/roles"
         _api_request_with_retry(
             default_bot_client,
@@ -119,11 +114,129 @@ def _reorder_roles_bottom(role_ids: list[int], start_position: int = 1) -> bool:
             data=payload,
         )
         default_bot_client._invalidate_guild_roles_cache(DISCORD_GUILD_ID)
-        logger.info("Reordered %s roles to the bottom", len(shuffled))
+        logger.info("Reordered %s roles via manual ordering", len(payload))
         return True
     except Exception:
-        logger.exception("Failed to reorder roles")
+        logger.exception("Failed to reorder roles via manual ordering")
         return False
+
+
+def _config_role_map(roleset) -> dict:
+    configs = list(DiscordRoleObfuscation.objects.select_related("group"))
+    roles_by_id = {role.id: role for role in roleset}
+    roles_by_name = {role.name: role for role in roleset}
+    mapping: dict[int, DiscordRoleObfuscation] = {}
+
+    for config in configs:
+        role_id = None
+        if config.role_id and config.role_id in roles_by_id:
+            role_id = config.role_id
+        else:
+            desired = role_name_for_group(config.group, config)
+            for name in (desired, config.last_obfuscated_name, config.group.name):
+                if name and name in roles_by_name:
+                    role_id = roles_by_name[name].id
+                    break
+        if role_id and role_id not in mapping:
+            mapping[role_id] = config
+    return mapping
+
+
+def _build_manual_order_payload(
+    roleset,
+    bot_role_id: int | None,
+    mode: str = "desired",
+) -> list[dict]:
+    roles = list(roleset)
+    if not roles:
+        return []
+
+    roles_by_id = {role.id: role for role in roles}
+    bot_role = roles_by_id.get(bot_role_id) if bot_role_id else None
+    if bot_role_id and not bot_role:
+        logger.warning("Manual role ordering enabled but bot role id %s not found.", bot_role_id)
+        return []
+
+    if bot_role_id is None:
+        logger.warning("Manual role ordering enabled but bot role is not configured.")
+        return []
+
+    bot_position = getattr(bot_role, "position", None)
+    if bot_position is None:
+        logger.warning("Bot role position unavailable; skipping manual role ordering.")
+        return []
+
+    config_by_role_id = _config_role_map(roleset)
+    order_entries = list(DiscordRoleOrder.objects.all().order_by("sort_order", "role_name"))
+    if not order_entries:
+        logger.info("Manual role ordering enabled but no saved order exists.")
+        return []
+
+    system_locked_ids: set[int] = set()
+    user_locked_ids: set[int] = {
+        entry.role_id for entry in order_entries if entry.locked
+    }
+    for role in roles:
+        if getattr(role, "position", 0) == 0:
+            system_locked_ids.add(role.id)
+            continue
+        if getattr(role, "position", 0) >= bot_position:
+            system_locked_ids.add(role.id)
+            continue
+        config = config_by_role_id.get(role.id)
+        if config and config.opt_out:
+            system_locked_ids.add(role.id)
+            continue
+        if config and config.use_random_key and not config.random_key_rotate_position:
+            system_locked_ids.add(role.id)
+
+    locked_ids = system_locked_ids | user_locked_ids
+    movable_roles = [
+        role
+        for role in roles
+        if getattr(role, "position", 0) > 0 and getattr(role, "position", 0) < bot_position
+    ]
+    movable_ids = {role.id for role in movable_roles}
+
+    desired_ids = [
+        entry.role_id
+        for entry in order_entries
+        if entry.role_id in movable_ids
+    ]
+    desired_set = set(desired_ids)
+    remaining_ids = [
+        role.id
+        for role in sorted(movable_roles, key=lambda r: r.position, reverse=True)
+        if role.id not in desired_set
+    ]
+    ordered_ids = desired_ids + remaining_ids
+
+    available_positions = sorted(
+        [
+            role.position
+            for role in movable_roles
+            if role.id not in locked_ids
+        ],
+        reverse=True,
+    )
+
+    unlocked_ids = [role_id for role_id in ordered_ids if role_id not in locked_ids]
+    if mode == "shuffle":
+        shuffled = list(unlocked_ids)
+        random.SystemRandom().shuffle(shuffled)
+        unlocked_ids = shuffled
+
+    payload = []
+    for index, role_id in enumerate(unlocked_ids):
+        if index >= len(available_positions):
+            break
+        payload.append({"id": role_id, "position": available_positions[index]})
+
+    for role in movable_roles:
+        if role.id in locked_ids:
+            payload.append({"id": role.id, "position": role.position})
+
+    return payload
 
 
 def _api_request_with_retry(
@@ -380,13 +493,13 @@ def sync_role_color_rules() -> int:
 
 @shared_task
 def rotate_random_keys_and_reorder_roles() -> int:
-    """Rotate random keys, sync role names, and reorder roles at the bottom."""
+    """Rotate random keys, sync role names, and reorder roles via role ordering config."""
     configs = list(
         DiscordRoleObfuscation.objects.select_related("group").filter(
             use_random_key=True
         )
     )
-    if not configs:
+    if not configs and not role_ordering_enabled():
         return 0
 
     rename_targets = [config for config in configs if config.random_key_rotate_name]
@@ -400,38 +513,11 @@ def rotate_random_keys_and_reorder_roles() -> int:
         if _sync_config(config, roleset=roleset):
             updated += 1
 
-    if random_key_reposition_enabled():
-        role_ids = []
-        for config in configs:
-            if not config.random_key_rotate_position:
-                continue
-            if config.role_id:
-                role_ids.append(config.role_id)
-
-        unique_role_ids = list(dict.fromkeys(role_ids))
-        if unique_role_ids:
-            start_position = random_key_reposition_min_position()
-            max_position = 249
-            reserve_slots = 1  # Reserve one slot so obfuscated roles + bot role fit below max.
-            required = len(unique_role_ids) + reserve_slots
-            if start_position + required - 1 > max_position:
-                adjusted = max_position - required + 1
-                if adjusted < 1:
-                    logger.warning(
-                        "Not enough room to reposition %s roles below position 250; "
-                        "skipping reordering.",
-                        len(unique_role_ids),
-                    )
-                else:
-                    logger.warning(
-                        "Adjusted random key reposition start from %s to %s to fit %s roles.",
-                        start_position,
-                        adjusted,
-                        len(unique_role_ids),
-                    )
-                    start_position = adjusted
-            if start_position >= 1:
-                _reorder_roles_bottom(unique_role_ids, start_position)
+    if role_ordering_enabled():
+        bot_role_id = role_order_bot_role_id()
+        payload = _build_manual_order_payload(roleset, bot_role_id, role_order_mode())
+        if payload:
+            _reorder_roles_payload(payload)
     return updated
 
 
