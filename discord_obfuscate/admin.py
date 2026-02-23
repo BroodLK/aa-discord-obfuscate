@@ -54,6 +54,16 @@ def _role_position(role, default=0):
         return default
 
 
+def _role_sort_key(role):
+    position = _role_position(role, default=0)
+    role_id = getattr(role, "id", 0) or 0
+    try:
+        role_id = int(role_id)
+    except (TypeError, ValueError):
+        role_id = 0
+    return (-position, role_id)
+
+
 def _role_is_everyone(role) -> bool:
     if role is None:
         return False
@@ -303,7 +313,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj=obj, **kwargs)
         roleset = fetch_roleset(use_cache=True)
-        roles = sorted(list(roleset), key=_role_position, reverse=True)
+        roles = sorted(list(roleset), key=_role_sort_key)
         choices = [("", "---------")]
         for role in roles:
             choices.append((str(role.id), f"{role.name} ({role.id})"))
@@ -387,7 +397,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
         ]
         remaining_ids = [
             role.id
-            for role in sorted(roles, key=_role_position, reverse=True)
+            for role in sorted(roles, key=_role_sort_key)
             if role.id not in ordered_ids
         ]
         display_ids = ordered_ids + remaining_ids

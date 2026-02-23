@@ -63,6 +63,16 @@ def _role_position(role, default=0):
         return default
 
 
+def _role_sort_key(role):
+    position = _role_position(role, default=0)
+    role_id = getattr(role, "id", 0) or 0
+    try:
+        role_id = int(role_id)
+    except (TypeError, ValueError):
+        role_id = 0
+    return (-position, role_id)
+
+
 def _role_is_everyone(role) -> bool:
     if role is None:
         return False
@@ -230,17 +240,17 @@ def _build_manual_order_payload(
     desired_set = set(desired_ids)
     remaining_ids = [
         role.id
-        for role in sorted(movable_roles, key=_role_position, reverse=True)
+        for role in sorted(movable_roles, key=_role_sort_key)
         if role.id not in desired_set
     ]
     ordered_ids = desired_ids + remaining_ids
 
     available_positions = sorted(
-        [
+        {
             _role_position(role)
             for role in movable_roles
             if role.id not in locked_ids
-        ],
+        },
         reverse=True,
     )
 

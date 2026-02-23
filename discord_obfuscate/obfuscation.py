@@ -9,6 +9,7 @@ import logging
 import secrets
 import string
 import time
+import json
 from dataclasses import dataclass, field
 from collections.abc import Mapping
 from typing import Dict, Iterable, List, Optional
@@ -274,6 +275,38 @@ def _raw_role_from_payload(payload: dict) -> RawRole:
     )
 
 
+def _normalize_raw_roles(raw_roles):
+    if raw_roles is None:
+        return None
+    if isinstance(raw_roles, list):
+        return raw_roles
+    if isinstance(raw_roles, (bytes, bytearray)):
+        try:
+            raw_roles = raw_roles.decode("utf-8")
+        except Exception:
+            return None
+    if isinstance(raw_roles, str):
+        try:
+            parsed = json.loads(raw_roles)
+            if isinstance(parsed, list):
+                return parsed
+            raw_roles = parsed
+        except Exception:
+            return None
+    if isinstance(raw_roles, Mapping):
+        data = raw_roles.get("data")
+        if isinstance(data, list):
+            return data
+    if hasattr(raw_roles, "json"):
+        try:
+            parsed = raw_roles.json()
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            return None
+    return None
+
+
 def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
     """Fetch roles for the configured guild as RolesSet."""
     try:
@@ -292,14 +325,17 @@ def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
                 )
                 roles = list(roles) if roles else []
                 if roles and not _roles_have_position(roles):
-                    raw_roles = _fetch_raw_roles(default_bot_client, DISCORD_GUILD_ID)
+                    raw_roles = _normalize_raw_roles(
+                        _fetch_raw_roles(default_bot_client, DISCORD_GUILD_ID)
+                    )
                     if isinstance(raw_roles, list) and raw_roles:
                         raw_objects = [
                             _raw_role_from_payload(role)
                             for role in raw_roles
                             if isinstance(role, Mapping)
                         ]
-                        return SimpleRolesSet(raw_objects)
+                        if raw_objects:
+                            return SimpleRolesSet(raw_objects)
                     logger.warning(
                         "Raw role fetch did not return a list; position data unavailable."
                     )
