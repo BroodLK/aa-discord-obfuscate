@@ -71,6 +71,35 @@ class RawRole:
         raise AttributeError(f"{type(self).__name__} has no attribute '{item}'")
 
 
+class SimpleRolesSet:
+    """Minimal RolesSet replacement for raw role payloads."""
+
+    def __init__(self, roles: list):
+        self._roles = list(roles or [])
+        self._by_name = {
+            getattr(role, "name", None): role
+            for role in self._roles
+            if getattr(role, "name", None)
+        }
+        self._by_id = {
+            getattr(role, "id", None): role
+            for role in self._roles
+            if getattr(role, "id", None) is not None
+        }
+
+    def __iter__(self):
+        return iter(self._roles)
+
+    def __len__(self):
+        return len(self._roles)
+
+    def role_by_name(self, name: str):
+        return self._by_name.get(name)
+
+    def role_by_id(self, role_id: int):
+        return self._by_id.get(role_id)
+
+
 def _method_info(method: str) -> tuple:
     method = method or DEFAULT_OBFUSCATE_METHOD
     if method not in OBFUSCATION_METHODS:
@@ -265,28 +294,16 @@ def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
                 if roles and not _roles_have_position(roles):
                     raw_roles = _fetch_raw_roles(default_bot_client, DISCORD_GUILD_ID)
                     if isinstance(raw_roles, list) and raw_roles:
-                        raw_by_id = {}
-                        for raw in raw_roles:
-                            if not isinstance(raw, Mapping):
-                                continue
-                            raw_id = _normalize_role_id(raw.get("id"))
-                            if raw_id:
-                                raw_by_id[raw_id] = raw
-                        if raw_by_id:
-                            for role in roles:
-                                raw = raw_by_id.get(getattr(role, "id", 0))
-                                if not raw:
-                                    continue
-                                if not hasattr(role, "position"):
-                                    setattr(role, "position", _safe_int(raw.get("position"), 0))
-                                if not hasattr(role, "color"):
-                                    setattr(role, "color", _safe_int(raw.get("color"), 0))
-                                if not hasattr(role, "managed") and "managed" in raw:
-                                    setattr(role, "managed", bool(raw.get("managed", False)))
-                    else:
-                        logger.warning(
-                            "Raw role fetch did not return a list; position data unavailable."
-                        )
+                        raw_objects = [
+                            _raw_role_from_payload(role)
+                            for role in raw_roles
+                            if isinstance(role, Mapping)
+                        ]
+                        return SimpleRolesSet(raw_objects)
+                    logger.warning(
+                        "Raw role fetch did not return a list; position data unavailable."
+                    )
+                    return SimpleRolesSet(roles)
                 return RolesSet(roles)
             except DiscordRateLimitExhausted as exc:
                 if attempt >= max_attempts:
