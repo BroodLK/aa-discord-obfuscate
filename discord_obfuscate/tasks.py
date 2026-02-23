@@ -4,6 +4,7 @@
 import logging
 import random
 import time
+from collections.abc import Mapping
 from fnmatch import fnmatchcase
 
 # Third Party
@@ -45,6 +46,21 @@ from discord_obfuscate.models import (
 logger = logging.getLogger(__name__)
 
 # Create your tasks here
+
+
+def _role_position(role, default=0):
+    if role is None:
+        return default
+    if isinstance(role, Mapping):
+        value = role.get("position", default)
+    else:
+        value = getattr(role, "position", default)
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _find_role_by_id(roleset, role_id):
@@ -161,7 +177,7 @@ def _build_manual_order_payload(
         logger.warning("Manual role ordering enabled but bot role is not configured.")
         return []
 
-    bot_position = getattr(bot_role, "position", None)
+    bot_position = _role_position(bot_role, default=None)
     if bot_position is None:
         logger.warning("Bot role position unavailable; skipping manual role ordering.")
         return []
@@ -177,10 +193,10 @@ def _build_manual_order_payload(
         entry.role_id for entry in order_entries if entry.locked
     }
     for role in roles:
-        if getattr(role, "position", 0) == 0:
+        if _role_position(role) == 0:
             system_locked_ids.add(role.id)
             continue
-        if getattr(role, "position", 0) >= bot_position:
+        if _role_position(role) >= bot_position:
             system_locked_ids.add(role.id)
             continue
         config = config_by_role_id.get(role.id)
@@ -194,7 +210,7 @@ def _build_manual_order_payload(
     movable_roles = [
         role
         for role in roles
-        if getattr(role, "position", 0) > 0 and getattr(role, "position", 0) < bot_position
+        if _role_position(role) > 0 and _role_position(role) < bot_position
     ]
     movable_ids = {role.id for role in movable_roles}
 
@@ -206,14 +222,14 @@ def _build_manual_order_payload(
     desired_set = set(desired_ids)
     remaining_ids = [
         role.id
-        for role in sorted(movable_roles, key=lambda r: r.position, reverse=True)
+        for role in sorted(movable_roles, key=_role_position, reverse=True)
         if role.id not in desired_set
     ]
     ordered_ids = desired_ids + remaining_ids
 
     available_positions = sorted(
         [
-            role.position
+            _role_position(role)
             for role in movable_roles
             if role.id not in locked_ids
         ],
@@ -234,7 +250,7 @@ def _build_manual_order_payload(
 
     for role in movable_roles:
         if role.id in locked_ids:
-            payload.append({"id": role.id, "position": role.position})
+            payload.append({"id": role.id, "position": _role_position(role)})
 
     return payload
 

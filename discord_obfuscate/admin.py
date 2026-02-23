@@ -2,6 +2,7 @@
 
 # Standard Library
 import json
+from collections.abc import Mapping
 
 # Django
 from django.contrib import admin, messages
@@ -37,6 +38,20 @@ from discord_obfuscate.role_colors import to_hex
 from discord_obfuscate.tasks import sync_all_roles, sync_group_role
 
 # Register your models here.
+
+def _role_position(role, default=0):
+    if role is None:
+        return default
+    if isinstance(role, Mapping):
+        value = role.get("position", default)
+    else:
+        value = getattr(role, "position", default)
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 @admin.register(DiscordRoleObfuscation)
@@ -280,7 +295,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj=obj, **kwargs)
         roleset = fetch_roleset(use_cache=True)
-        roles = sorted(list(roleset), key=lambda r: r.position, reverse=True)
+        roles = sorted(list(roleset), key=_role_position, reverse=True)
         choices = [("", "---------")]
         for role in roles:
             choices.append((str(role.id), f"{role.name} ({role.id})"))
@@ -364,7 +379,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
         ]
         remaining_ids = [
             role.id
-            for role in sorted(roles, key=lambda r: r.position, reverse=True)
+            for role in sorted(roles, key=_role_position, reverse=True)
             if role.id not in ordered_ids
         ]
         display_ids = ordered_ids + remaining_ids
@@ -374,7 +389,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
             obj = DiscordRoleOrderConfig.get_solo()
         bot_role_id = getattr(obj, "bot_role_id", None)
         bot_role = roles_by_id.get(bot_role_id) if bot_role_id else None
-        bot_position = getattr(bot_role, "position", None) if bot_role else None
+        bot_position = _role_position(bot_role, default=None) if bot_role else None
 
         warnings = []
         if not roles:
@@ -393,9 +408,9 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                 continue
             config = config_by_role_id.get(role.id)
             reasons = []
-            if getattr(role, "position", 0) == 0:
+            if _role_position(role) == 0:
                 reasons.append("@everyone")
-            if bot_position is not None and getattr(role, "position", 0) >= bot_position:
+            if bot_position is not None and _role_position(role) >= bot_position:
                 reasons.append("above bot")
             if config and config.opt_out:
                 reasons.append("opt out")
@@ -411,7 +426,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                     "role_id": role.id,
                     "name": role.name,
                     "color": color_value,
-                    "position": getattr(role, "position", 0),
+                    "position": _role_position(role),
                     "user_locked": user_locked,
                     "system_locked": system_locked,
                     "lock_reasons": ", ".join(reasons),
