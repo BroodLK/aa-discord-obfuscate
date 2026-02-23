@@ -104,7 +104,7 @@ def role_order_mode() -> str:
     config = _get_role_order_config()
     if config and config.reorder_mode:
         return str(config.reorder_mode)
-    return "desired"
+    return "shuffle"
 
 
 def default_obfuscation_values() -> dict:

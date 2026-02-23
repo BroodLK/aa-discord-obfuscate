@@ -18,11 +18,12 @@
       </ul>
     {% endif %}
     <p class="help">
-      Drag roles to set their order. Locked roles cannot be moved and act as fixed slots.
+      Role order is read from Discord. To change the order of roles, update them in Discord and refresh
+      this page.
     </p>
     <p class="help">
-      Only unlocked roles are reordered, and only into positions currently held by other unlocked roles.
-      Locked rows keep their positions as fixed slots.
+      Lock checkboxes only affect automation when role ordering is enabled; they do not change the order
+      shown here.
     </p>
     <p class="help">
       Color and opt-out status are read-only here. Update role colors in Discord (or via Role Color Rules)
@@ -32,7 +33,6 @@
     <table class="role-order-table{% if not role_order_enabled %} is-disabled{% endif %}" id="role-order-table">
       <thead>
         <tr>
-          <th class="col-drag">Drag</th>
           <th class="col-role">Role</th>
           <th class="col-id">Role ID</th>
           <th class="col-color">Color</th>
@@ -48,11 +48,7 @@
             data-locked="{% if row.system_locked or row.user_locked %}1{% else %}0{% endif %}"
             data-system-locked="{{ row.system_locked|yesno:'1,0' }}"
             data-user-locked="{{ row.user_locked|yesno:'1,0' }}"
-            data-draggable="{% if role_order_enabled and not row.system_locked and not row.user_locked %}1{% else %}0{% endif %}"
           >
-            <td class="col-drag">
-              <span class="drag-handle" title="Drag to reorder">|||</span>
-            </td>
             <td class="col-role">
               <span class="role-name">{{ row.name }}</span>
             </td>

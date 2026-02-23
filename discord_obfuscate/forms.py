@@ -265,19 +265,12 @@ class DiscordRoleOrderConfigForm(forms.ModelForm):
         label="Bot role",
         help_text="Highest role of the bot; roles above it are locked.",
     )
-    reorder_mode = forms.ChoiceField(
-        required=True,
-        label="Reorder behavior",
-        widget=forms.RadioSelect,
-        choices=DiscordRoleOrderConfig.ORDER_MODES,
-    )
 
     class Meta:
         model = DiscordRoleOrderConfig
         fields = [
             "enabled",
             "bot_role_id",
-            "reorder_mode",
         ]
 
     def __init__(self, *args, **kwargs):

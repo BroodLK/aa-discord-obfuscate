@@ -304,7 +304,6 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                 "fields": (
                     "enabled",
                     "bot_role_id",
-                    "reorder_mode",
                 )
             },
         ),
@@ -390,17 +389,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
 
         order_entries = list(DiscordRoleOrder.objects.all())
         order_by_id = {entry.role_id: entry for entry in order_entries}
-        ordered_ids = [
-            entry.role_id
-            for entry in sorted(order_entries, key=lambda e: e.sort_order)
-            if entry.role_id in roles_by_id
-        ]
-        remaining_ids = [
-            role.id
-            for role in sorted(roles, key=_role_sort_key)
-            if role.id not in ordered_ids
-        ]
-        display_ids = ordered_ids + remaining_ids
+        display_ids = [role.id for role in sorted(roles, key=_role_sort_key)]
 
         obj = self.get_object(request, object_id) if object_id else None
         if obj is None:
@@ -434,7 +423,9 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
             reasons = []
             if _role_is_everyone(role):
                 reasons.append("@everyone")
-            if bot_position is not None and _role_position(role) >= bot_position:
+            if bot_role_id and role.id == bot_role_id:
+                reasons.append("is bot")
+            elif bot_position is not None and _role_position(role) >= bot_position:
                 reasons.append("above bot")
             if config and config.opt_out:
                 reasons.append("opt out")

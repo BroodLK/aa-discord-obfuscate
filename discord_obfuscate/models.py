@@ -227,7 +227,7 @@ class DiscordRoleOrderConfig(SingletonModel):
     reorder_mode = models.CharField(
         max_length=16,
         choices=ORDER_MODES,
-        default="desired",
+        default="shuffle",
         help_text="Controls how unlocked roles are positioned during the reorder task.",
     )
     updated_at = models.DateTimeField(auto_now=True)

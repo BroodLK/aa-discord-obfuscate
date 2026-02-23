@@ -52,81 +52,6 @@
       return row.dataset.locked === "1";
     }
 
-    function setRowDraggable(row, draggable) {
-      if (draggable) {
-        row.setAttribute("draggable", "true");
-      } else {
-        row.removeAttribute("draggable");
-      }
-    }
-
-    rows().forEach(function (row) {
-      setRowDraggable(row, row.dataset.draggable === "1");
-    });
-
-    var dragged = null;
-
-    function lockedBetween(rowA, rowB) {
-      var list = rows();
-      var idxA = list.indexOf(rowA);
-      var idxB = list.indexOf(rowB);
-      if (idxA === -1 || idxB === -1) {
-        return false;
-      }
-      var start = Math.min(idxA, idxB);
-      var end = Math.max(idxA, idxB);
-      for (var i = start + 1; i < end; i += 1) {
-        if (isLocked(list[i])) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    tbody.addEventListener("dragstart", function (event) {
-      var row = closestRow(event.target);
-      if (!row || isLocked(row)) {
-        event.preventDefault();
-        return;
-      }
-      if (!event.target.classList.contains("drag-handle")) {
-        event.preventDefault();
-        return;
-      }
-      dragged = row;
-      row.classList.add("dragging");
-      event.dataTransfer.effectAllowed = "move";
-      try {
-        event.dataTransfer.setData("text/plain", "");
-      } catch (err) {
-        // Ignore if the browser blocks setData.
-      }
-    });
-
-    tbody.addEventListener("dragover", function (event) {
-      if (!dragged) {
-        return;
-      }
-      var row = closestRow(event.target);
-      if (!row || row === dragged || isLocked(row)) {
-        return;
-      }
-      if (lockedBetween(dragged, row)) {
-        return;
-      }
-      event.preventDefault();
-      var rect = row.getBoundingClientRect();
-      var next = event.clientY > rect.top + rect.height / 2;
-      tbody.insertBefore(dragged, next ? row.nextSibling : row);
-    });
-
-    tbody.addEventListener("dragend", function () {
-      if (dragged) {
-        dragged.classList.remove("dragging");
-      }
-      dragged = null;
-    });
-
     tbody.querySelectorAll(".role-lock").forEach(function (checkbox) {
       checkbox.addEventListener("change", function () {
         var row = closestRow(checkbox);
@@ -135,9 +60,7 @@
         }
         var locked = checkbox.checked;
         row.dataset.locked = locked ? "1" : "0";
-        row.dataset.draggable = locked ? "0" : "1";
         row.dataset.userLocked = locked ? "1" : "0";
-        setRowDraggable(row, !locked);
       });
     });
 
