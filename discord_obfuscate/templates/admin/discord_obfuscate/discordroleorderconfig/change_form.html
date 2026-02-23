@@ -20,6 +20,14 @@
     <p class="help">
       Drag roles to set their order. Locked roles cannot be moved and act as fixed slots.
     </p>
+    <p class="help">
+      Only unlocked roles are reordered, and only into positions currently held by other unlocked roles.
+      Locked rows keep their positions as fixed slots.
+    </p>
+    <p class="help">
+      Color and opt-out status are read-only here. Update role colors in Discord (or via Role Color Rules)
+      and opt-out status in Discord Role Obfuscations.
+    </p>
     <input type="hidden" name="role_order_data" id="id_role_order_data" value="">
     <table class="role-order-table{% if not role_order_enabled %} is-disabled{% endif %}" id="role-order-table">
       <thead>

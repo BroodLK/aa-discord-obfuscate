@@ -22,6 +22,32 @@
       return Array.prototype.slice.call(tbody.querySelectorAll("tr"));
     }
 
+    function matchesSelector(el, selector) {
+      if (!el || el.nodeType !== 1) {
+        return false;
+      }
+      var proto =
+        el.matches ||
+        el.msMatchesSelector ||
+        el.webkitMatchesSelector ||
+        el.mozMatchesSelector;
+      if (!proto) {
+        return false;
+      }
+      return proto.call(el, selector);
+    }
+
+    function closestRow(el) {
+      var node = el;
+      while (node) {
+        if (matchesSelector(node, "tr")) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+
     function isLocked(row) {
       return row.dataset.locked === "1";
     }
@@ -58,7 +84,7 @@
     }
 
     tbody.addEventListener("dragstart", function (event) {
-      var row = event.target.closest("tr");
+      var row = closestRow(event.target);
       if (!row || isLocked(row)) {
         event.preventDefault();
         return;
@@ -81,7 +107,7 @@
       if (!dragged) {
         return;
       }
-      var row = event.target.closest("tr");
+      var row = closestRow(event.target);
       if (!row || row === dragged || isLocked(row)) {
         return;
       }
@@ -103,7 +129,7 @@
 
     tbody.querySelectorAll(".role-lock").forEach(function (checkbox) {
       checkbox.addEventListener("change", function () {
-        var row = checkbox.closest("tr");
+        var row = closestRow(checkbox);
         if (!row || row.dataset.systemLocked === "1") {
           return;
         }
