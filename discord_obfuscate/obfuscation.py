@@ -9,7 +9,7 @@ import logging
 import secrets
 import string
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional
 
 # Django
@@ -51,6 +51,23 @@ class RoleNameResolution:
     used_name: Optional[str]
     matched_role_id: Optional[int]
     used_original: bool
+
+
+@dataclass
+class RawRole:
+    """Fallback role model when the client returns stripped objects."""
+
+    id: int
+    name: str
+    position: int = 0
+    color: int = 0
+    managed: bool = False
+    raw: dict = field(default_factory=dict, repr=False)
+
+    def __getattr__(self, item):
+        if item in self.raw:
+            return self.raw[item]
+        raise AttributeError(f"{type(self).__name__} has no attribute '{item}'")
 
 
 def _method_info(method: str) -> tuple:
@@ -183,6 +200,49 @@ def _rate_limit_delay(exc) -> float:
     return max(delay + 0.25, 0.5)
 
 
+def _roles_have_position(roles: list) -> bool:
+    for role in roles:
+        if hasattr(role, "position"):
+            return True
+    return False
+
+
+def _fetch_raw_roles(client, guild_id):
+    try:
+        return client._api_request(method="get", route=f"guilds/{guild_id}/roles")
+    except Exception:
+        logger.exception("Failed to fetch raw roles from Discord API")
+        return None
+
+
+def _raw_role_from_payload(payload: dict) -> RawRole:
+    role_id = payload.get("id")
+    try:
+        role_id = int(role_id)
+    except (TypeError, ValueError):
+        role_id = 0
+    name = payload.get("name") or ""
+    position = payload.get("position") or 0
+    color = payload.get("color") or 0
+    managed = bool(payload.get("managed", False))
+    try:
+        position = int(position)
+    except (TypeError, ValueError):
+        position = 0
+    try:
+        color = int(color)
+    except (TypeError, ValueError):
+        color = 0
+    return RawRole(
+        id=role_id,
+        name=name,
+        position=position,
+        color=color,
+        managed=managed,
+        raw=payload,
+    )
+
+
 def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
     """Fetch roles for the configured guild as RolesSet."""
     try:
@@ -199,6 +259,11 @@ def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
                 roles = default_bot_client.guild_roles(
                     guild_id=DISCORD_GUILD_ID, use_cache=use_cache
                 )
+                roles = list(roles) if roles else []
+                if roles and not _roles_have_position(roles):
+                    raw_roles = _fetch_raw_roles(default_bot_client, DISCORD_GUILD_ID)
+                    if isinstance(raw_roles, list) and raw_roles:
+                        roles = [_raw_role_from_payload(role) for role in raw_roles]
                 return RolesSet(roles)
             except DiscordRateLimitExhausted as exc:
                 if attempt >= max_attempts:
