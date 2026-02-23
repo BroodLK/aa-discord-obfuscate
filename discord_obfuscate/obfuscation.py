@@ -10,6 +10,7 @@ import secrets
 import string
 import time
 from dataclasses import dataclass, field
+from collections.abc import Mapping
 from typing import Dict, Iterable, List, Optional
 
 # Django
@@ -207,6 +208,19 @@ def _roles_have_position(roles: list) -> bool:
     return False
 
 
+def _safe_int(value, default=0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_role_id(value) -> int:
+    return _safe_int(value, default=0)
+
+
 def _fetch_raw_roles(client, guild_id):
     try:
         return client._api_request(method="get", route=f"guilds/{guild_id}/roles")
@@ -216,23 +230,11 @@ def _fetch_raw_roles(client, guild_id):
 
 
 def _raw_role_from_payload(payload: dict) -> RawRole:
-    role_id = payload.get("id")
-    try:
-        role_id = int(role_id)
-    except (TypeError, ValueError):
-        role_id = 0
+    role_id = _normalize_role_id(payload.get("id"))
     name = payload.get("name") or ""
-    position = payload.get("position") or 0
-    color = payload.get("color") or 0
+    position = _safe_int(payload.get("position"), default=0)
+    color = _safe_int(payload.get("color"), default=0)
     managed = bool(payload.get("managed", False))
-    try:
-        position = int(position)
-    except (TypeError, ValueError):
-        position = 0
-    try:
-        color = int(color)
-    except (TypeError, ValueError):
-        color = 0
     return RawRole(
         id=role_id,
         name=name,
@@ -263,7 +265,28 @@ def fetch_roleset(use_cache: bool = True, max_attempts: int = 3) -> RolesSet:
                 if roles and not _roles_have_position(roles):
                     raw_roles = _fetch_raw_roles(default_bot_client, DISCORD_GUILD_ID)
                     if isinstance(raw_roles, list) and raw_roles:
-                        roles = [_raw_role_from_payload(role) for role in raw_roles]
+                        raw_by_id = {}
+                        for raw in raw_roles:
+                            if not isinstance(raw, Mapping):
+                                continue
+                            raw_id = _normalize_role_id(raw.get("id"))
+                            if raw_id:
+                                raw_by_id[raw_id] = raw
+                        if raw_by_id:
+                            for role in roles:
+                                raw = raw_by_id.get(getattr(role, "id", 0))
+                                if not raw:
+                                    continue
+                                if not hasattr(role, "position"):
+                                    setattr(role, "position", _safe_int(raw.get("position"), 0))
+                                if not hasattr(role, "color"):
+                                    setattr(role, "color", _safe_int(raw.get("color"), 0))
+                                if not hasattr(role, "managed") and "managed" in raw:
+                                    setattr(role, "managed", bool(raw.get("managed", False)))
+                    else:
+                        logger.warning(
+                            "Raw role fetch did not return a list; position data unavailable."
+                        )
                 return RolesSet(roles)
             except DiscordRateLimitExhausted as exc:
                 if attempt >= max_attempts:
