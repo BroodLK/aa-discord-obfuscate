@@ -71,7 +71,6 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             "use_random_key",
             "random_key",
             "random_key_rotate_name",
-            "random_key_rotate_position",
             "role_color_enabled",
             "role_color",
             "preview",
@@ -89,9 +88,6 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
             self.fields["use_random_key"].initial = defaults.get("use_random_key", False)
             self.fields["random_key_rotate_name"].initial = defaults.get(
                 "random_key_rotate_name", True
-            )
-            self.fields["random_key_rotate_position"].initial = defaults.get(
-                "random_key_rotate_position", True
             )
             self.fields["obfuscation_type"].initial = defaults.get("obfuscation_type")
             divider_chars = defaults.get("divider_characters") or ""
@@ -184,7 +180,6 @@ class DiscordRoleObfuscationForm(forms.ModelForm):
         else:
             cleaned["random_key"] = ""
             cleaned["random_key_rotate_name"] = False
-            cleaned["random_key_rotate_position"] = False
         if not cleaned.get("role_color_enabled"):
             cleaned["role_color"] = ""
         dividers = cleaned.get("divider_characters") or []
@@ -222,7 +217,6 @@ class DiscordObfuscateConfigForm(forms.ModelForm):
             "default_opt_out",
             "default_use_random_key",
             "default_random_key_rotate_name",
-            "default_random_key_rotate_position",
             "default_obfuscation_type",
             "default_divider_characters",
             "default_min_chars_before_divider",

@@ -41,7 +41,7 @@ ______________________________________________________________________
 - Per-group controls in Django admin: opt out, custom name override, method, format, dividers, and role color.
 - Optional per-group role color applied during sync.
 - Optional per-group random key mode with periodic rotation.
-- Manual role ordering via a drag-and-drop admin table.
+- Role ordering visibility in admin (ordering changes are made in Discord).
 - Pattern-based role color rules for new roles.
 - Preview and bulk sync actions in Django admin.
 
@@ -124,7 +124,7 @@ for newly created per-group entries:
 - `Sync on save` queues a rename task when you save a per-group config. (recommended)
 - `Default opt-out` sets new entries to keep the original group name.
 - `Default use random key` turns on random-key mode by default.
-- `Default rotate name/position` controls the random key rotation behavior.
+- `Default rotate name` controls the random key rotation behavior.
 - `Default obfuscation type` chooses the hashing method for new entries.
 - `Default divider characters` and `Default min chars before divider` set output
   formatting defaults.
@@ -147,7 +147,7 @@ Defaults are applied when entries are created.
 3) Configure per-group options:
    - Opt out to keep the original group name.
    - Custom name override (takes precedence over hashing).
-   - Random key mode plus rotation flags.
+   - Random key mode plus rotate-name flag.
    - Obfuscation method, format, divider characters, and min chars per divider.
    - Optional fixed role color (`#RRGGBB`).
 4) Use the preview field to verify the output name.
@@ -190,10 +190,10 @@ random-key rotation task is enabled in Discord Obfuscate config, it will:
 - Rename those roles to the newly obfuscated names.
 - Apply the manual role order configuration if it is enabled.
 
-Each random-key entry can opt out of renaming or repositioning via the two
-checkboxes shown when `Use random key` is enabled. Manual ordering is configured
-in `Discord Role Order Config`, which also controls whether unlocked roles are
-shuffled or kept in the saved order when the rotation task runs.
+Each random-key entry can opt out of renaming via the rotate-name checkbox shown
+when `Use random key` is enabled. Manual ordering is configured in `Discord Role
+Order Config`; locked roles remain fixed while unlocked roles may be shuffled
+when the rotation task runs.
 
 ### Role Coloring<a name="role-coloring"></a>
 

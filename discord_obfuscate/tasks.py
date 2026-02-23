@@ -155,27 +155,6 @@ def _reorder_roles_payload(payload: list[dict]) -> bool:
         return False
 
 
-def _config_role_map(roleset) -> dict:
-    configs = list(DiscordRoleObfuscation.objects.select_related("group"))
-    roles_by_id = {role.id: role for role in roleset}
-    roles_by_name = {role.name: role for role in roleset}
-    mapping: dict[int, DiscordRoleObfuscation] = {}
-
-    for config in configs:
-        role_id = None
-        if config.role_id and config.role_id in roles_by_id:
-            role_id = config.role_id
-        else:
-            desired = role_name_for_group(config.group, config)
-            for name in (desired, config.last_obfuscated_name, config.group.name):
-                if name and name in roles_by_name:
-                    role_id = roles_by_name[name].id
-                    break
-        if role_id and role_id not in mapping:
-            mapping[role_id] = config
-    return mapping
-
-
 def _build_manual_order_payload(
     roleset,
     bot_role_id: int | None,
@@ -200,7 +179,6 @@ def _build_manual_order_payload(
         logger.warning("Bot role position unavailable; skipping manual role ordering.")
         return []
 
-    config_by_role_id = _config_role_map(roleset)
     order_entries = list(DiscordRoleOrder.objects.all().order_by("sort_order", "role_name"))
     if not order_entries:
         logger.info("Manual role ordering enabled but no saved order exists.")
@@ -210,6 +188,7 @@ def _build_manual_order_payload(
     user_locked_ids: set[int] = {
         entry.role_id for entry in order_entries if entry.locked
     }
+    opt_out_ids = _opt_out_role_ids(roleset)
     for role in roles:
         if _role_is_everyone(role):
             system_locked_ids.add(role.id)
@@ -217,11 +196,7 @@ def _build_manual_order_payload(
         if _role_position(role) >= bot_position:
             system_locked_ids.add(role.id)
             continue
-        config = config_by_role_id.get(role.id)
-        if config and config.opt_out:
-            system_locked_ids.add(role.id)
-            continue
-        if config and config.use_random_key and not config.random_key_rotate_position:
+        if role.id in opt_out_ids:
             system_locked_ids.add(role.id)
 
     locked_ids = system_locked_ids | user_locked_ids
@@ -271,6 +246,32 @@ def _build_manual_order_payload(
             payload.append({"id": role.id, "position": _role_position(role)})
 
     return payload
+
+
+def _opt_out_role_ids(roleset) -> set[int]:
+    configs = list(
+        DiscordRoleObfuscation.objects.select_related("group").filter(opt_out=True)
+    )
+    if not configs:
+        return set()
+    roles_by_id = {role.id: role for role in roleset}
+    roles_by_name = {role.name: role for role in roleset}
+    role_ids: set[int] = set()
+
+    for config in configs:
+        role_id = None
+        if config.role_id and config.role_id in roles_by_id:
+            role_id = config.role_id
+        else:
+            desired = role_name_for_group(config.group, config)
+            for name in (desired, config.last_obfuscated_name, config.group.name):
+                if name and name in roles_by_name:
+                    role_id = roles_by_name[name].id
+                    break
+        if role_id:
+            role_ids.add(role_id)
+
+    return role_ids
 
 
 def _api_request_with_retry(

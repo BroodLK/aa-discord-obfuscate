@@ -119,9 +119,6 @@ def default_obfuscation_values() -> dict:
             "opt_out": bool(config.default_opt_out),
             "use_random_key": bool(config.default_use_random_key),
             "random_key_rotate_name": bool(config.default_random_key_rotate_name),
-            "random_key_rotate_position": bool(
-                config.default_random_key_rotate_position
-            ),
             "obfuscation_type": obfuscation_type,
             "divider_characters": ",".join(dividers),
             "min_chars_before_divider": int(
@@ -133,7 +130,6 @@ def default_obfuscation_values() -> dict:
         "opt_out": False,
         "use_random_key": False,
         "random_key_rotate_name": True,
-        "random_key_rotate_position": True,
         "obfuscation_type": DEFAULT_OBFUSCATE_METHOD,
         "divider_characters": "",
         "min_chars_before_divider": 0,

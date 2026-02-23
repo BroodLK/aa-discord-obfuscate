@@ -81,7 +81,6 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "opt_out",
         "use_random_key",
         "random_key_rotate_name",
-        "random_key_rotate_position",
         "obfuscation_type",
         "custom_name",
         "last_obfuscated_name",
@@ -96,7 +95,6 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         "use_random_key",
         "random_key",
         "random_key_rotate_name",
-        "random_key_rotate_position",
         "role_color_enabled",
         "role_color",
         "obfuscation_type",
@@ -208,11 +206,6 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
         use_random_key = request.POST.get("use_random_key") in {"on", "true", "1"}
         random_key = (request.POST.get("random_key") or "").strip()
         rotate_name = request.POST.get("random_key_rotate_name") in {"on", "true", "1"}
-        rotate_position = request.POST.get("random_key_rotate_position") in {
-            "on",
-            "true",
-            "1",
-        }
         opt_out = request.POST.get("opt_out") in {"on", "true", "1"}
         obfuscation_type = request.POST.get("obfuscation_type")
         obfuscation_format = (request.POST.get("obfuscation_format") or "").strip()
@@ -230,7 +223,6 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             use_random_key=use_random_key,
             random_key=random_key or (generate_random_key(16) if use_random_key else ""),
             random_key_rotate_name=rotate_name if use_random_key else False,
-            random_key_rotate_position=rotate_position if use_random_key else False,
         )
         temp_config.set_dividers(dividers)
         preview = role_name_for_group(temp_group, temp_config)
@@ -263,7 +255,6 @@ class DiscordObfuscateConfigAdmin(SingletonModelAdmin):
                     "default_opt_out",
                     "default_use_random_key",
                     "default_random_key_rotate_name",
-                    "default_random_key_rotate_position",
                     "default_obfuscation_type",
                     "default_divider_characters",
                     "default_min_chars_before_divider",
@@ -371,7 +362,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
         roles = list(roleset)
         roles_by_id = {role.id: role for role in roles}
         roles_by_name = {role.name: role for role in roles}
-        configs = list(DiscordRoleObfuscation.objects.select_related("group"))
+        configs = list(DiscordRoleObfuscation.objects.select_related("group").filter(opt_out=True))
         config_by_role_id = {}
 
         for config in configs:
@@ -429,8 +420,6 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                 reasons.append("above bot")
             if config and config.opt_out:
                 reasons.append("opt out")
-            if config and config.use_random_key and not config.random_key_rotate_position:
-                reasons.append("reorder disabled")
             system_locked = bool(reasons)
             user_locked = bool(order_by_id.get(role.id).locked) if role.id in order_by_id else False
             color_value = ""

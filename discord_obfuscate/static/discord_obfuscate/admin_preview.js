@@ -26,12 +26,11 @@
     var useRandomKey = document.getElementById("id_use_random_key");
     var randomKey = document.getElementById("id_random_key");
     var rotateName = document.getElementById("id_random_key_rotate_name");
-    var rotatePosition = document.getElementById("id_random_key_rotate_position");
     var obfuscationType = document.getElementById("id_obfuscation_type");
     var obfuscationFormat = document.getElementById("id_obfuscation_format");
     var minChars = document.getElementById("id_min_chars_before_divider");
 
-    toggleRandomKeyFields(useRandomKey, randomKey, rotateName, rotatePosition);
+    toggleRandomKeyFields(useRandomKey, randomKey, rotateName);
 
     if (group) {
       formData.append("group", group.value || "");
@@ -50,9 +49,6 @@
     }
     if (rotateName && rotateName.checked) {
       formData.append("random_key_rotate_name", "1");
-    }
-    if (rotatePosition && rotatePosition.checked) {
-      formData.append("random_key_rotate_position", "1");
     }
     if (obfuscationType) {
       formData.append("obfuscation_type", obfuscationType.value || "");
@@ -96,8 +92,7 @@
   function toggleRandomKeyFields(
     useRandomKey,
     randomKey,
-    rotateName,
-    rotatePosition
+    rotateName
   ) {
     if (!useRandomKey || !randomKey) {
       return;
@@ -107,17 +102,12 @@
         randomKey.value = generateRandomKey(16);
       }
       showFieldRow(rotateName, true);
-      showFieldRow(rotatePosition, true);
     } else {
       randomKey.value = "";
       if (rotateName) {
         rotateName.checked = false;
       }
-      if (rotatePosition) {
-        rotatePosition.checked = false;
-      }
       showFieldRow(rotateName, false);
-      showFieldRow(rotatePosition, false);
     }
   }
 
@@ -182,15 +172,13 @@
       useRandomKey.addEventListener("change", function () {
         var randomKey = document.getElementById("id_random_key");
         var rotateName = document.getElementById("id_random_key_rotate_name");
-        var rotatePosition = document.getElementById("id_random_key_rotate_position");
-        toggleRandomKeyFields(useRandomKey, randomKey, rotateName, rotatePosition);
+        toggleRandomKeyFields(useRandomKey, randomKey, rotateName);
         updatePreview();
       });
     }
     var randomKey = document.getElementById("id_random_key");
     var rotateName = document.getElementById("id_random_key_rotate_name");
-    var rotatePosition = document.getElementById("id_random_key_rotate_position");
-    toggleRandomKeyFields(useRandomKey, randomKey, rotateName, rotatePosition);
+    toggleRandomKeyFields(useRandomKey, randomKey, rotateName);
     updatePreview();
   }
 
