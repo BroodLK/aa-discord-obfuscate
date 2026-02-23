@@ -74,7 +74,7 @@
               </span>
             </td>
             <td class="col-pos">
-              {{ row.position }}
+              {{ row.position|default_if_none:"--" }}
             </td>
           </tr>
         {% endfor %}

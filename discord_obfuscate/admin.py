@@ -54,6 +54,14 @@ def _role_position(role, default=0):
         return default
 
 
+def _role_is_everyone(role) -> bool:
+    if role is None:
+        return False
+    if isinstance(role, Mapping):
+        return role.get("name") == "@everyone"
+    return getattr(role, "name", "") == "@everyone"
+
+
 @admin.register(DiscordRoleObfuscation)
 class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
     form = DiscordRoleObfuscationForm
@@ -394,6 +402,12 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
         warnings = []
         if not roles:
             warnings.append("Failed to load roles from Discord.")
+        else:
+            positions = [_role_position(role, default=None) for role in roles]
+            if len(roles) > 1 and (not positions or all(pos == 0 for pos in positions if pos is not None)):
+                warnings.append(
+                    "Role positions unavailable from Discord; ordering may be incorrect."
+                )
         if bot_role_id and not bot_role:
             warnings.append("Configured bot role not found in Discord roles.")
         if not bot_role_id:
@@ -408,7 +422,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                 continue
             config = config_by_role_id.get(role.id)
             reasons = []
-            if _role_position(role) == 0:
+            if _role_is_everyone(role):
                 reasons.append("@everyone")
             if bot_position is not None and _role_position(role) >= bot_position:
                 reasons.append("above bot")
@@ -426,7 +440,7 @@ class DiscordRoleOrderConfigAdmin(SingletonModelAdmin):
                     "role_id": role.id,
                     "name": role.name,
                     "color": color_value,
-                    "position": _role_position(role),
+                    "position": _role_position(role, default=None),
                     "user_locked": user_locked,
                     "system_locked": system_locked,
                     "lock_reasons": ", ".join(reasons),

@@ -63,6 +63,14 @@ def _role_position(role, default=0):
         return default
 
 
+def _role_is_everyone(role) -> bool:
+    if role is None:
+        return False
+    if isinstance(role, Mapping):
+        return role.get("name") == "@everyone"
+    return getattr(role, "name", "") == "@everyone"
+
+
 def _find_role_by_id(roleset, role_id):
     for role in roleset:
         if role.id == role_id:
@@ -193,7 +201,7 @@ def _build_manual_order_payload(
         entry.role_id for entry in order_entries if entry.locked
     }
     for role in roles:
-        if _role_position(role) == 0:
+        if _role_is_everyone(role):
             system_locked_ids.add(role.id)
             continue
         if _role_position(role) >= bot_position:
