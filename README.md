@@ -122,7 +122,8 @@ Complete these steps before syncing roles for the first time:
    - Use `Sync selected roles now` or `Sync all roles now`, or rely on sync-on-save
      if enabled. Additionally, you can wait for the periodic task.
 -------------------------
-> [!INFO]
+
+> [!NOTE]
 > This does not modify any groups inside AllianceAuth, they will appear as they always have.
 
 ### Enable and Schedule Tasks<a name="enable-and-schedule-tasks"></a>
