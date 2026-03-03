@@ -47,6 +47,8 @@ ______________________________________________________________________
 - Pattern-based role color rules for new roles.
 - Preview and bulk sync actions in Django admin.
 
+![Example of obfuscated Discord roles](https://i.imgur.com/SDYE5bi.png)
+
 > [!CAUTION]
 > This will not work on roles that are above the bot. Attempting to modify roles that are above the bot will result in an error and potentially terrible terrible things..
 
