@@ -52,7 +52,7 @@ ______________________________________________________________________
 
 ## Requirements<a name="requirements"></a>
 
-- Alliance Auth 4.3.1+ (<5)
+- Alliance Auth 4.3.1+
 - Python 3.11+
 - Discord service configured in Alliance Auth (bot and guild)
 
@@ -94,30 +94,7 @@ DISCORD_OBFUSCATE_SECRET = "change-me"  # Defaults to SECRET_KEY
 
 All other behavior is configured in Django admin.
 
-### Enable and Schedule Tasks<a name="enable-and-schedule-tasks"></a>
-
-The app ships periodic tasks, but they only run when enabled
-1) Create the periodic tasks:
-
-```bash
-python manage.py obfuscate_setup
-```
-
-2) In Django admin, open `Discord Obfuscate Config` and enable the task toggles
-   you need: `Periodic sync`, `Role color rule sync`, and/or `Random key rotation`.
-
-This creates three periodic tasks in `Periodic Tasks` disabled by default:
-
-- `Obfuscate Discord: Sync all roles` (hourly)
-- `Obfuscate Discord: Sync role colors` (hourly)
-- `Obfuscate Discord: Rotate random keys` (every 3 days)
-
-> [!CAUTION]
-> You need to enable the periodic tasks in Periodic Tasks and the App's Configuration Admin to run them. The tasks exit early when their config toggles are disabled.
-
-You can adjust
-schedules in Django admin under `Periodic Tasks`.
-
+-------------------------
 ### Initial Configuration (First Run)<a name="initial-configuration-first-run"></a>
 
 Complete these steps before syncing roles for the first time:
@@ -142,7 +119,31 @@ Complete these steps before syncing roles for the first time:
 4) Run a sync:
    - Use `Sync selected roles now` or `Sync all roles now`, or rely on sync-on-save
      if enabled. Additionally, you can wait for the periodic task.
+-------------------------
 
+### Enable and Schedule Tasks<a name="enable-and-schedule-tasks"></a>
+
+The app ships periodic tasks, but they only run when enabled
+1) Create the periodic tasks:
+
+```bash
+python manage.py obfuscate_setup
+```
+
+2) In Django admin, open `Discord Obfuscate Config` and enable the task toggles
+   you need: `Periodic sync`, `Role color rule sync`, and/or `Random key rotation`.
+
+This creates three periodic tasks in `Periodic Tasks` disabled by default:
+
+- `Obfuscate Discord: Sync all roles` (hourly)
+- `Obfuscate Discord: Sync role colors` (hourly)
+- `Obfuscate Discord: Rotate random keys` (every 3 days)
+
+> [!CAUTION]
+> You need to enable the periodic tasks in Periodic Tasks and the App's Configuration Admin to run them. The tasks exit early when their config toggles are disabled.
+
+You can adjust
+schedules in Django admin under `Periodic Tasks`.
 ### Default Settings<a name="default-settings"></a>
 
 Use the `Discord Obfuscate Config` in Django admin to control defaults
