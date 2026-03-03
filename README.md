@@ -87,7 +87,7 @@ python manage.py migrate
 Only one optional setting is supported in `settings/local.py`:
 
 > [!CAUTION]
-> Because this repository is public, anyone can see what this defaults to, not changing this to a unique value poses a significant security risk unless random keys are used.
+> Because this repository is public, anyone can see what this defaults to, not changing this to a unique value poses a significant security risk.
 
 ```python
 # Discord Obfuscate
@@ -122,6 +122,8 @@ Complete these steps before syncing roles for the first time:
    - Use `Sync selected roles now` or `Sync all roles now`, or rely on sync-on-save
      if enabled. Additionally, you can wait for the periodic task.
 -------------------------
+> [!INFO]
+> This does not modify any groups inside AllianceAuth, they will appear as they always have.
 
 ### Enable and Schedule Tasks<a name="enable-and-schedule-tasks"></a>
 
@@ -141,7 +143,7 @@ This creates three periodic tasks in `Periodic Tasks` disabled by default:
 - `Obfuscate Discord: Sync role colors` (hourly)
 - `Obfuscate Discord: Rotate random keys` (every 3 days)
 
-> [!CAUTION]
+> [!WARNING]
 > You need to enable the periodic tasks in Periodic Tasks and the App's Configuration Admin to run them. The tasks exit early when their config toggles are disabled.
 
 You can adjust
