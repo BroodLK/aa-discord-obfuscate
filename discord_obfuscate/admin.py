@@ -87,7 +87,12 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
     )
     search_fields = ("group__name", "custom_name")
     list_filter = ("opt_out", "obfuscation_type")
-    actions = ["discover_roles", "sync_selected_roles", "sync_all_roles_action"]
+    actions = [
+        "discover_roles",
+        "toggle_opt_out",
+        "sync_selected_roles",
+        "sync_all_roles_action",
+    ]
     fields = (
         "group",
         "opt_out",
@@ -155,6 +160,21 @@ class DiscordRoleObfuscationAdmin(admin.ModelAdmin):
             if was_created:
                 created += 1
         messages.success(request, f"Discovered {created} new groups.")
+
+    @admin.action(description="Toggle opt-out for selected roles")
+    def toggle_opt_out(self, request, queryset):
+        toggled = 0
+        for config in queryset:
+            config.opt_out = not config.opt_out
+            config.save(update_fields=["opt_out", "updated_at"])
+            if sync_on_save_enabled():
+                sync_group_role.delay(config.group_id)
+            toggled += 1
+        if toggled:
+            messages.success(
+                request,
+                f"Toggled opt-out for {toggled} groups.",
+            )
 
     @admin.action(description="Sync selected roles now")
     def sync_selected_roles(self, request, queryset):

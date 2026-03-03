@@ -20,11 +20,13 @@ ______________________________________________________________________
   - [Configuration](#configuration)
     - [App Settings (settings/local.py)](#app-settings-settingslocalpy)
     - [Enable and Schedule Tasks](#enable-and-schedule-tasks)
+    - [Initial Configuration (First Run)](#initial-configuration-first-run)
     - [Default Settings](#default-settings)
   - [Usage](#usage)
     - [Per-Group Obfuscation](#per-group-obfuscation)
     - [Obfuscation Process](#obfuscation-process)
     - [Random Key Rotation](#random-key-rotation)
+    - [Role Ordering](#role-ordering)
     - [Role Coloring](#role-coloring)
   - [Limitations](#limitations)
   - [Troubleshooting](#troubleshooting)
@@ -110,11 +112,36 @@ This creates three periodic tasks in `Periodic Tasks` disabled by default:
 - `Obfuscate Discord: Sync role colors` (hourly)
 - `Obfuscate Discord: Rotate random keys` (every 3 days)
 
-> [!WARNING]
+> [!CAUTION]
 > You need to enable the periodic tasks in Periodic Tasks and the App's Configuration Admin to run them. The tasks exit early when their config toggles are disabled.
 
 You can adjust
 schedules in Django admin under `Periodic Tasks`.
+
+### Initial Configuration (First Run)<a name="initial-configuration-first-run"></a>
+
+Complete these steps before syncing roles for the first time:
+
+1) In Django admin, open `Discord Obfuscate Config` and set your defaults.
+   - **Highly recommended:** enable `Default opt-out` so new entries keep the original
+     group name until you explicitly opt in to obfuscation.
+   - Set the default obfuscation type, divider characters, and min chars if you want
+     a consistent output format from day one.
+
+2) Open `Discord Role Order Config`, select the bot role in the dropdown, and save.
+   - This dropdown is populated from live Discord role data.
+   - Saving after the bot role is set ensures the role ordering page can correctly
+     lock roles above the bot.
+
+3) Open `Discord Role Obfuscations`.
+   - Use the admin action dropdown `Discover groups from Discord roles` to pull
+     current Discord roles into per-group entries.
+   - Use the bulk action `Toggle opt-out for selected roles` to opt in/out the
+     groups you want to obfuscate.
+
+4) Run a sync:
+   - Use `Sync selected roles now` or `Sync all roles now`, or rely on sync-on-save
+     if enabled. Additionally, you can wait for the periodic task.
 
 ### Default Settings<a name="default-settings"></a>
 
@@ -194,6 +221,17 @@ Each random-key entry can opt out of renaming via the rotate-name checkbox shown
 when `Use random key` is enabled. Manual ordering is configured in `Discord Role
 Order Config`; locked roles remain fixed while unlocked roles may be shuffled
 when the rotation task runs.
+
+### Role Ordering<a name="role-ordering"></a>
+
+Role ordering is configured in `Discord Role Order Config`.
+
+- Set the bot role in the dropdown and save. Roles above the bot are locked.
+- The table shows live Discord role order; to change order, edit roles in Discord
+  and refresh this page.
+- Lock checkboxes only affect automation when role ordering is enabled.
+- Opt-out and color are read-only here. Update opt-out in `Discord Role Obfuscations`
+  and color in Discord or via Role Color Rules.
 
 ### Role Coloring<a name="role-coloring"></a>
 
