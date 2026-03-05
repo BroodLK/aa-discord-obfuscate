@@ -63,7 +63,7 @@ ______________________________________________________________________
 Install the app in your AA virtual environment:
 
 ```bash
-pip install git+https://github.com/ppfeufer/aa-discord-obfuscate
+pip install aa-discord-obfuscate
 ```
 
 Add the app to your AA `INSTALLED_APPS` in `settings/local.py`:
